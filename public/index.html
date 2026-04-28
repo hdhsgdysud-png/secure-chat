@@ -1,0 +1,80 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+  <title>FALCON</title>
+  <style>
+    body {
+      margin: 0;
+      padding: 0;
+      background-color: #0a0a0f; /* FALCON Ana Arka Plan Rengi */
+      height: 100vh;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      color: #fff;
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
+    }
+    .logo {
+      font-size: 2.5rem;
+      font-weight: bold;
+      letter-spacing: 2px;
+      background: linear-gradient(135deg, #06b6d4 0%, #0891b2 100%);
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+      animation: pulse 1.5s infinite alternate;
+    }
+    .loader {
+      margin-top: 24px;
+      width: 36px;
+      height: 36px;
+      border: 3px solid rgba(6, 182, 212, 0.15);
+      border-top-color: #06b6d4;
+      border-radius: 50%;
+      animation: spin 1s linear infinite;
+    }
+    @keyframes pulse {
+      0% { opacity: 0.7; transform: scale(0.98); }
+      100% { opacity: 1; transform: scale(1.02); }
+    }
+    @keyframes spin { 
+      100% { transform: rotate(360deg); } 
+    }
+  </style>
+</head>
+<body>
+
+  <div class="logo">FALCON</div>
+  <div class="loader"></div>
+
+  <script>
+    // 1. ADIM: BURAYA KENDİ GİST RAW LİNKİNİ YAPIŞTIR
+    const GIST_URL = "https://gist.githubusercontent.com/hdhsgdysud-png/44adf67542408f0117ba24b89a574ab1/raw/falcon-config.json";
+
+    async function initApp() {
+      try {
+        // Sonuna getTime ekliyoruz ki telefon eski linki hafızasında tutmasın, hep en güncelini çeksin
+        const res = await fetch(GIST_URL + "?t=" + new Date().getTime()); 
+        const data = await res.json();
+        
+        if (data.maintenance_mode) {
+          document.body.innerHTML = '<h3 style="color:#ef4444; text-align:center; padding:20px; font-family:sans-serif;">FALCON şu an bakımda.<br><br>Lütfen daha sonra tekrar deneyin.</h3>';
+          return;
+        }
+
+        // 2. ADIM: SANİYESİNDE ASIL SUNUCUYA IŞINLA!
+        window.location.replace(data.current_server);
+        
+      } catch (error) {
+        document.body.innerHTML = '<h3 style="color:#ef4444; text-align:center; padding:20px; font-family:sans-serif;">Bağlantı Hatası.<br><br>İnternetinizi kontrol edip uygulamayı yeniden açın.</h3>';
+      }
+    }
+
+    // O havalı logoyu en az yarım saniye (500ms) görsünler diye ufak bir bekleme koyduk :)
+    setTimeout(initApp, 500); 
+  </script>
+
+</body>
+</html>
