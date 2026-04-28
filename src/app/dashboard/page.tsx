@@ -197,7 +197,7 @@ export default function Dashboard() {
   const s = themeStyles[theme];
 
   return (
-    <main className="h-screen w-screen overflow-hidden antialiased transition-colors duration-500" style={{ background: s.bg, color: s.text }}>
+    <main className="fixed inset-0 h-[100dvh] w-full overflow-hidden overscroll-none antialiased transition-colors duration-500" style={{ background: s.bg, color: s.text }}>
       <div className="absolute inset-0 transition-colors duration-500" style={{ background: `radial-gradient(circle at 50% 50%, rgba(${c.rgb}, 0.03), transparent 50%)` }} />
       
       <div className="h-full max-w-[1920px] mx-auto flex relative z-10">

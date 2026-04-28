@@ -105,7 +105,7 @@ export default function Home() {
   const s = themeStyles[theme];
 
   return (
-    <main className="h-screen w-screen overflow-hidden antialiased flex items-center justify-center p-4 transition-colors duration-500" style={{ background: s.bg }}>
+    <main className="fixed inset-0 h-[100dvh] w-full overflow-hidden overscroll-none antialiased flex items-center justify-center p-4 transition-colors duration-500" style={{ background: s.bg }}>
       <div className="absolute inset-0" style={{ background: `radial-gradient(circle at 50% 50%, rgba(${c.rgb}, 0.05), transparent 50%)` }} />
 
       <div
