@@ -4,6 +4,11 @@ import { useRouter } from 'next/navigation';
 import Pusher from 'pusher-js';
 import { Shield, Trash2, Check, Send, X, ArrowLeft, MessageSquare, Settings, RefreshCw } from 'lucide-react';
 
+// --- KLAVYE EKLENTİLERİ ---
+import { Keyboard } from '@capacitor/keyboard';
+import { Capacitor } from '@capacitor/core';
+// --------------------------
+
 const dict: any = {
   en: { chats: "Chats", addFriend: "+ Add Friend", noChats: "No chats yet. Add a friend from above!", openChat: "Click to open chat...", logout: "Secure Logout", yourCode: "Your Code", selectChat: "Select a chat to start", orAddFriend: "Or add a new friend from the menu", encrypted: "AES-256 Encrypted", delete: "Delete", emptyHistory: "Message history is empty.", typeMessage: "Type a message...", send: "Send", typing: "Typing...", settings: "Settings", language: "Language", theme: "Theme", accentColor: "Accent Color", notifications: "Notifications", save: "Save changes", dark: "Dark", light: "Light", black: "Pitch Black", on: "On", off: "Off", friendCode: "Friend Code", enter6Digit: "Enter 6-digit code", startChat: "Start Chat", searching: "Searching...", success: "Chat created! ✅", error: "An error occurred!", confirmDelete: "Are you sure you want to permanently delete this chat? No traces will be left!", connectionError: "Connection error!" },
   tr: { chats: "Sohbetlerim", addFriend: "+ Arkadaş Ekle", noChats: "Henüz sohbetin yok. Yukarıdan arkadaş ekle!", openChat: "Sohbeti açmak için tıkla...", logout: "Sistemden Güvenli Çıkış Yap", yourCode: "Kodun", selectChat: "Sohbet başlatmak için birini seç", orAddFriend: "Veya menüden yeni bir arkadaş ekle", encrypted: "AES-256 Uçtan Uca Şifreli", delete: "Sil", emptyHistory: "Mesaj geçmişi boş.", typeMessage: "Mesaj yaz...", send: "Gönder", typing: "Yazıyor...", settings: "Ayarlar", language: "Dil", theme: "Tema", accentColor: "Vurgu Rengi", notifications: "Bildirimler", save: "Değişiklikleri Kaydet", dark: "Koyu (Dark)", light: "Açık (Beyaz)", black: "Simsiyah (AMOLED)", on: "Açık", off: "Kapalı", friendCode: "Arkadaş Kodu", enter6Digit: "6 haneli kodu girin", startChat: "Sohbet Başlat", searching: "Aranıyor...", success: "Sohbet oluşturuldu! ✅", error: "Hata oluştu!", confirmDelete: "Bu sohbeti tamamen silmek istediğine emin misin? İz kalmayacak!", connectionError: "Bağlantı hatası!" }
@@ -29,6 +34,21 @@ export default function Dashboard() {
   const [userCode, setUserCode] = useState('');
   const [isMounted, setIsMounted] = useState(false);
   const [isRefreshing, setIsRefreshing] = useState(false);
+
+  // --- KLAVYENİN BEYAZ ÇUBUĞUNU GİZLEYEN KOD ---
+  useEffect(() => {
+    const hideKeyboardBar = async () => {
+      if (Capacitor.isNativePlatform()) {
+        try {
+          await Keyboard.setAccessoryBarVisible({ isVisible: false });
+        } catch (error) {
+          console.error("Klavye çubuğu gizlenemedi:", error);
+        }
+      }
+    };
+    hideKeyboardBar();
+  }, []);
+  // ----------------------------------------------
 
   const handleRefreshCode = async (action: 'auto' | 'manual', currentUsername?: string) => {
     const targetUser = currentUsername || username;

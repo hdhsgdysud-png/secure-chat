@@ -3,6 +3,11 @@ import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import { Shield, Lock, User, ArrowRight, CheckCircle2 } from 'lucide-react';
 
+// --- KLAVYE EKLENTİLERİ ---
+import { Keyboard } from '@capacitor/keyboard';
+import { Capacitor } from '@capacitor/core';
+// --------------------------
+
 const dict: any = {
   en: {
     login: 'Login', register: 'Create Account', subtitle: 'End-to-end encrypted messaging platform', username: 'Username', password: 'Password', processing: 'Processing...', noAccount: 'Don\'t have an account?', hasAccount: 'Already have an account?', registerNow: 'Register Now', loginNow: 'Login Now', reqEmpty: 'Username and password cannot be empty!', connErr: 'Connection failed!', successReg: 'Registration successful! Code: '
@@ -38,6 +43,21 @@ export default function Home() {
   const [lang, setLang] = useState('en');
   const [theme, setTheme] = useState('dark');
   const [accent, setAccent] = useState('cyan');
+
+  // --- KLAVYENİN BEYAZ ÇUBUĞUNU GİZLEYEN KOD ---
+  useEffect(() => {
+    const hideKeyboardBar = async () => {
+      if (Capacitor.isNativePlatform()) {
+        try {
+          await Keyboard.setAccessoryBarVisible({ isVisible: false });
+        } catch (error) {
+          console.error("Klavye çubuğu gizlenemedi:", error);
+        }
+      }
+    };
+    hideKeyboardBar();
+  }, []);
+  // ----------------------------------------------
 
   useEffect(() => {
     const storedName = localStorage.getItem('username');
@@ -79,7 +99,6 @@ export default function Home() {
           localStorage.setItem('username', data.username);
           localStorage.setItem('userCode', data.userCode);
           
-          // VERİTABANINDAN GELEN AYARLARI TARAYICIYA KAYDET
           if (data.settings) {
             localStorage.setItem('lang', data.settings.lang);
             localStorage.setItem('theme', data.settings.theme);
