@@ -1,9 +1,12 @@
-import type { CapacitorConfig } from '@capacitor/cli';
+import { CapacitorConfig } from '@capacitor/cli';
 
 const config: CapacitorConfig = {
-  appId: 'com.amr.falcon',
+  appId: 'com.spicy.falcon',
   appName: 'FALCON',
-  webDir: 'public'
+  webDir: 'public',
+  server: {
+    allowNavigation: ['*']
+  }
 };
 
 export default config;
