@@ -2,17 +2,16 @@
 import { useEffect, useState, useRef } from 'react';
 import { useRouter } from 'next/navigation';
 import Pusher from 'pusher-js';
-import { Shield, Trash2, Check, Send, X, ArrowLeft, MessageSquare, Settings } from 'lucide-react';
+import { Shield, Trash2, Check, Send, X, ArrowLeft, MessageSquare, Settings, RefreshCw } from 'lucide-react';
 
 const dict: any = {
   en: { chats: "Chats", addFriend: "+ Add Friend", noChats: "No chats yet. Add a friend from above!", openChat: "Click to open chat...", logout: "Secure Logout", yourCode: "Your Code", selectChat: "Select a chat to start", orAddFriend: "Or add a new friend from the menu", encrypted: "AES-256 Encrypted", delete: "Delete", emptyHistory: "Message history is empty.", typeMessage: "Type a message...", send: "Send", typing: "Typing...", settings: "Settings", language: "Language", theme: "Theme", accentColor: "Accent Color", notifications: "Notifications", save: "Save changes", dark: "Dark", light: "Light", black: "Pitch Black", on: "On", off: "Off", friendCode: "Friend Code", enter6Digit: "Enter 6-digit code", startChat: "Start Chat", searching: "Searching...", success: "Chat created! ✅", error: "An error occurred!", confirmDelete: "Are you sure you want to permanently delete this chat? No traces will be left!", connectionError: "Connection error!" },
-  tr: { chats: "Sohbetlerim", addFriend: "+ Arkadaş Ekle", noChats: "Henüz sohbetin yok. Yukarıdan arkadaş ekle!", openChat: "Sohbeti açmak için tıkla...", logout: "Sistemden Güvenli Çıkış Yap", yourCode: "Senin Kodun", selectChat: "Sohbet başlatmak için birini seç", orAddFriend: "Veya menüden yeni bir arkadaş ekle", encrypted: "AES-256 Uçtan Uca Şifreli", delete: "Sil", emptyHistory: "Mesaj geçmişi boş.", typeMessage: "Mesaj yaz...", send: "Gönder", typing: "Yazıyor...", settings: "Ayarlar", language: "Dil", theme: "Tema", accentColor: "Vurgu Rengi", notifications: "Bildirimler", save: "Değişiklikleri Kaydet", dark: "Koyu (Dark)", light: "Açık (Beyaz)", black: "Simsiyah (AMOLED)", on: "Açık", off: "Kapalı", friendCode: "Arkadaş Kodu", enter6Digit: "6 haneli kodu girin", startChat: "Sohbet Başlat", searching: "Aranıyor...", success: "Sohbet oluşturuldu! ✅", error: "Hata oluştu!", confirmDelete: "Bu sohbeti tamamen silmek istediğine emin misin? İz kalmayacak!", connectionError: "Bağlantı hatası!" }
+  tr: { chats: "Sohbetlerim", addFriend: "+ Arkadaş Ekle", noChats: "Henüz sohbetin yok. Yukarıdan arkadaş ekle!", openChat: "Sohbeti açmak için tıkla...", logout: "Sistemden Güvenli Çıkış Yap", yourCode: "Kodun", selectChat: "Sohbet başlatmak için birini seç", orAddFriend: "Veya menüden yeni bir arkadaş ekle", encrypted: "AES-256 Uçtan Uca Şifreli", delete: "Sil", emptyHistory: "Mesaj geçmişi boş.", typeMessage: "Mesaj yaz...", send: "Gönder", typing: "Yazıyor...", settings: "Ayarlar", language: "Dil", theme: "Tema", accentColor: "Vurgu Rengi", notifications: "Bildirimler", save: "Değişiklikleri Kaydet", dark: "Koyu (Dark)", light: "Açık (Beyaz)", black: "Simsiyah (AMOLED)", on: "Açık", off: "Kapalı", friendCode: "Arkadaş Kodu", enter6Digit: "6 haneli kodu girin", startChat: "Sohbet Başlat", searching: "Aranıyor...", success: "Sohbet oluşturuldu! ✅", error: "Hata oluştu!", confirmDelete: "Bu sohbeti tamamen silmek istediğine emin misin? İz kalmayacak!", connectionError: "Bağlantı hatası!" }
 };
 
-// BEYAZ VE AÇIK RENKLER İÇİN YAZI RENGİ (text) ÖZELLİĞİ EKLENDİ
 const accentColors: any = {
   cyan: { hex: '#06b6d4', hexEnd: '#0891b2', rgb: '6, 182, 212', text: '#ffffff' },
-  white: { hex: '#ffffff', hexEnd: '#e2e8f0', rgb: '255, 255, 255', text: '#0f172a' }, // Beyaz butonun içindeki yazı siyah olacak!
+  white: { hex: '#ffffff', hexEnd: '#e2e8f0', rgb: '255, 255, 255', text: '#0f172a' },
   green: { hex: '#22c55e', hexEnd: '#16a34a', rgb: '34, 197, 94', text: '#ffffff' },
   red: { hex: '#ef4444', hexEnd: '#dc2626', rgb: '239, 68, 68', text: '#ffffff' },
   pink: { hex: '#ec4899', hexEnd: '#db2777', rgb: '236, 72, 153', text: '#ffffff' }
@@ -29,6 +28,29 @@ export default function Dashboard() {
   const [username, setUsername] = useState('');
   const [userCode, setUserCode] = useState('');
   const [isMounted, setIsMounted] = useState(false);
+  const [isRefreshing, setIsRefreshing] = useState(false);
+
+  const handleRefreshCode = async (action: 'auto' | 'manual', currentUsername?: string) => {
+    const targetUser = currentUsername || username;
+    if (!targetUser) return;
+    
+    if (action === 'manual') setIsRefreshing(true);
+    try {
+      const res = await fetch('/api/user/refresh-code', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ username: targetUser, action })
+      });
+      const data = await res.json();
+      if (res.ok && data.newCode) {
+        setUserCode(data.newCode);
+        localStorage.setItem('userCode', data.newCode);
+      }
+    } catch (error) {
+      console.error("Hata:", error);
+    }
+    if (action === 'manual') setTimeout(() => setIsRefreshing(false), 500);
+  };
 
   const [lang, setLang] = useState('en');
   const [theme, setTheme] = useState('dark');
@@ -67,11 +89,12 @@ export default function Dashboard() {
       setAccent(localStorage.getItem('accent') || 'cyan');
       setNotif(localStorage.getItem('notif') === 'false' ? false : true);
       fetchDashboardData(storedName);
+      handleRefreshCode('auto', storedName);
       setIsMounted(true);
     }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [router]);
 
-  // VERİTABANINA KAYDETME İŞLEMİ
   const saveSettings = async () => {
     localStorage.setItem('lang', lang);
     localStorage.setItem('theme', theme);
@@ -83,7 +106,6 @@ export default function Dashboard() {
       Notification.requestPermission();
     }
 
-    // Arka planda DB'ye kaydet
     await fetch('/api/settings', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
@@ -204,12 +226,23 @@ export default function Dashboard() {
         
         <div className={`w-full md:w-[380px] flex-col h-full backdrop-blur-3xl border-r ${isMobileChatOpen ? 'hidden md:flex' : 'flex'}`} style={{ background: s.surface, borderColor: s.border }}>
           <div className="p-6 border-b flex justify-between items-center" style={{ borderColor: s.border }}>
-            <h1 className="text-2xl tracking-tight font-semibold inline-block bg-clip-text text-transparent" style={{ backgroundImage: `linear-gradient(135deg, ${c.hex} 0%, ${c.hexEnd} 100%)` }}>
-              SecureChat
+            <h1 className="text-2xl tracking-tight font-bold inline-block bg-clip-text text-transparent" style={{ backgroundImage: `linear-gradient(135deg, ${c.hex} 0%, ${c.hexEnd} 100%)` }}>
+              FALCON
             </h1>
-            <button onClick={() => setShowSettings(true)} className="p-2 rounded-full hover:scale-110 transition-all" style={{ background: 'rgba(128, 128, 128, 0.1)' }}>
-              <Settings className="w-5 h-5" style={{ color: s.textMuted }} />
-            </button>
+            <div className="flex items-center gap-2 md:gap-3">
+              <div className="px-3 py-1.5 rounded-[12px] border flex items-center gap-2" style={{ background: `rgba(${c.rgb}, 0.1)`, borderColor: `rgba(${c.rgb}, 0.2)` }}>
+                <div className="flex items-center gap-1.5">
+                  <span className="text-[10px] uppercase font-bold tracking-wider" style={{ color: s.textMuted }}>{t.yourCode}:</span>
+                  <span className="text-sm font-mono font-bold" style={{ color: c.hex }}>{userCode}</span>
+                </div>
+                <button onClick={() => handleRefreshCode('manual')} disabled={isRefreshing} className={`p-1 rounded-md transition-all hover:bg-white/10 ${isRefreshing ? 'animate-spin opacity-50' : ''}`} style={{ color: c.hex }}>
+                  <RefreshCw className="w-3.5 h-3.5" />
+                </button>
+              </div>
+              <button onClick={() => setShowSettings(true)} className="p-2 rounded-full hover:scale-110 transition-all" style={{ background: 'rgba(128, 128, 128, 0.1)' }}>
+                <Settings className="w-5 h-5" style={{ color: s.textMuted }} />
+              </button>
+            </div>
           </div>
 
           <div className="p-4 border-b" style={{ borderColor: s.border }}>
@@ -229,7 +262,7 @@ export default function Dashboard() {
                   <button key={chat._id} onClick={() => handleSelectChat(chat)} className={`w-full p-4 rounded-[20px] backdrop-blur-2xl transition-all duration-300 text-left group hover:scale-[1.01] active:scale-[0.99] ${isSelected ? 'scale-[1.01]' : ''}`} style={{ background: isSelected ? `linear-gradient(135deg, rgba(${c.rgb}, 0.18) 0%, rgba(${c.rgb}, 0.1) 100%)` : 'transparent', border: `1.5px solid ${isSelected ? `rgba(${c.rgb}, 0.4)` : 'transparent'}` }}>
                     <div className="flex items-center gap-3.5">
                       <div className="w-12 h-12 rounded-full flex items-center justify-center flex-shrink-0 font-medium" style={{ background: `linear-gradient(135deg, rgba(${c.rgb}, 0.25) 0%, rgba(${c.rgb}, 0.15) 100%)`, border: `1.5px solid rgba(${c.rgb}, 0.35)` }}>
-                        <span style={{ color: c.hex }}>{friendName[0].toUpperCase()}</span>
+                        <span style={{ color: c.hex }}>{friendName ? friendName[0].toUpperCase() : '?'}</span>
                       </div>
                       <div className="flex-1 min-w-0">
                         <div className="flex items-center justify-between mb-1"><h3 className="truncate font-medium" style={{ color: s.text }}>{friendName}</h3></div>
@@ -257,10 +290,6 @@ export default function Dashboard() {
                 </div>
                 <h2 className="text-xl mb-2 font-semibold tracking-tight" style={{ color: s.text }}>{t.selectChat}</h2>
                 <p className="text-sm" style={{ color: s.textMuted }}>{t.orAddFriend}</p>
-                <div className="mt-8 text-center md:hidden">
-                  <p className="text-xs uppercase tracking-widest mb-1" style={{ color: s.textMuted }}>{t.yourCode}</p>
-                  <p className="text-3xl font-mono font-bold py-2 px-6 rounded-2xl border" style={{ color: c.hex, background: `rgba(${c.rgb}, 0.1)`, borderColor: `rgba(${c.rgb}, 0.2)` }}>{userCode}</p>
-                </div>
               </div>
             </div>
           ) : (
@@ -289,9 +318,8 @@ export default function Dashboard() {
                     const isMe = msg.sender === username;
                     return (
                       <div key={index} className={`flex ${isMe ? 'justify-end' : 'justify-start'} animate-in fade-in slide-in-from-bottom-2 duration-300`}>
-                        {/* BALONCUK YAZI RENGİ DÜZELTİLDİ: isMe ise her zaman dinamik c.text kullanılır */}
-                        <div className={`max-w-[85%] md:max-w-[65%] px-6 py-3.5 backdrop-blur-2xl ${isMe ? 'rounded-[24px] rounded-br-[8px]' : 'rounded-[24px] rounded-bl-[8px]'}`} style={{ background: isMe ? `linear-gradient(135deg, rgba(${c.rgb}, 0.35) 0%, rgba(${c.rgb}, 0.2) 100%)` : s.msgBubble, border: `1.5px solid ${isMe ? `rgba(${c.rgb}, 0.4)` : s.border}` }}>
-                          <p className="break-words leading-relaxed" style={{ color: isMe ? c.text : s.text }}>{msg.text}</p>
+                        <div className={`max-w-[85%] md:max-w-[65%] px-4 py-2.5 md:px-6 md:py-3.5 backdrop-blur-2xl ${isMe ? 'rounded-[20px] md:rounded-[24px] rounded-br-[6px] md:rounded-br-[8px]' : 'rounded-[20px] md:rounded-[24px] rounded-bl-[6px] md:rounded-bl-[8px]'}`} style={{ background: isMe ? `linear-gradient(135deg, rgba(${c.rgb}, 0.35) 0%, rgba(${c.rgb}, 0.2) 100%)` : s.msgBubble, border: `1.5px solid ${isMe ? `rgba(${c.rgb}, 0.4)` : s.border}` }}>
+                          <p className="break-words leading-relaxed text-sm md:text-base" style={{ color: isMe ? c.text : s.text }}>{msg.text}</p>
                           <div className="flex items-center gap-2 mt-2 justify-end">
                             <span className="text-[11px] opacity-80" style={{ color: isMe ? c.text : s.textMuted }}>{new Date(msg.createdAt).toLocaleTimeString('tr-TR', { hour: '2-digit', minute: '2-digit' })}</span>
                             {isMe && (
@@ -323,7 +351,6 @@ export default function Dashboard() {
                   <div className="flex-1 relative">
                     <input type="text" value={newMessage} onChange={handleTyping} placeholder={t.typeMessage} className="w-full px-6 py-4 rounded-[26px] backdrop-blur-2xl transition-all duration-300 focus:outline-none" style={{ background: 'rgba(128, 128, 128, 0.08)', border: `1.5px solid ${s.border}`, color: s.text }} />
                   </div>
-                  {/* GÖNDER BUTONU İÇİNDEKİ İKON RENGİ DÜZELTİLDİ */}
                   <button type="submit" disabled={!newMessage.trim()} className="w-14 h-14 rounded-full backdrop-blur-2xl transition-all duration-300 hover:scale-105 active:scale-95 flex items-center justify-center flex-shrink-0 disabled:opacity-40" style={{ background: newMessage.trim() ? `linear-gradient(135deg, ${c.hex} 0%, ${c.hexEnd} 100%)` : 'rgba(128, 128, 128, 0.08)', border: `1.5px solid rgba(${c.rgb}, 0.4)` }}>
                     <Send className="w-5 h-5" style={{ color: newMessage.trim() ? c.text : s.textMuted }} />
                   </button>

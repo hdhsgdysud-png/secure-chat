@@ -1,8 +1,8 @@
 import "./globals.css";
 
 export const metadata = {
-  title: 'Gizli Sohbet',
-  description: 'Modern Web Tabanlı Sohbet Uygulaması',
+  title: 'FALCON',
+  description: 'Secure Messaging',
 }
 
 export default function RootLayout({

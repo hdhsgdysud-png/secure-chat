@@ -5,6 +5,7 @@ const userSchema = new mongoose.Schema(
     username: { type: String, required: true, unique: true },
     password: { type: String, required: true },
     userCode: { type: String, required: true, unique: true },
+    codeUpdatedAt: { type: Date, default: Date.now },
     // YENİ EKLENEN AYARLAR KISMI
     settings: {
       lang: { type: String, default: 'en' },
