@@ -25,7 +25,7 @@ export async function POST(req: Request) {
 
     // 2. Kişi kendi kodunu girdiyse engelle
     if (friend.username === currentUser) {
-      return NextResponse.json({ error: 'Kendinle sohbet edemezsin usta!' }, { status: 400 });
+      return NextResponse.json({ error: 'Kendinle sohbet edemezsin Ostam!' }, { status: 400 });
     }
 
     // 3. Daha önce aralarında açılmış bir sohbet var mı diye bak
