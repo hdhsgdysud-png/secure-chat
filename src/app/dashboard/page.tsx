@@ -383,7 +383,7 @@ export default function Dashboard() {
                 <label className="block text-sm mb-2 font-medium" style={{ color: s.textMuted }}>{t.accentColor}</label>
                 <div className="flex gap-3 justify-center">
                   {Object.keys(accentColors).map((colorKey) => (
-                    <button key={colorKey} onClick={() => setAccent(colorKey)} className={`w-10 h-10 rounded-full transition-all ${accent === colorKey ? 'scale-125 ring-2 ring-offset-2 ring-offset-slate-900' : 'hover:scale-110'}`} style={{ background: accentColors[colorKey].hex, ringColor: accentColors[colorKey].hex }} />
+                    <button key={colorKey} onClick={() => setAccent(colorKey)} className={`w-10 h-10 rounded-full transition-all ${accent === colorKey ? 'scale-125 outline outline-2 outline-offset-2' : 'hover:scale-110'}`} style={{ background: accentColors[colorKey].hex, outlineColor: accentColors[colorKey].hex }} />
                   ))}
                 </div>
               </div>
