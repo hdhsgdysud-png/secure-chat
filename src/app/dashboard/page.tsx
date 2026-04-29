@@ -56,6 +56,9 @@ export default function Dashboard() {
   const [typingUser, setTypingUser] = useState<string | null>(null);
   const typingTimeoutRef = useRef<NodeJS.Timeout | null>(null);
 
+  // YENİ EKLENEN: Pusher bağlantısını tek bir merkezde tutmak için state
+  const [pusherClient, setPusherClient] = useState<Pusher | null>(null);
+
   // --- KLAVYENİN BEYAZ ÇUBUĞUNU GİZLEYEN KOD ---
   useEffect(() => {
     const hideKeyboardBar = async () => {
@@ -116,8 +119,9 @@ export default function Dashboard() {
     if (action === 'manual') setTimeout(() => setIsRefreshing(false), 500);
   };
 
+  // ÇÖZÜM: Cache kırmak için fetch linkine t=Date.now() ve no-store eklendi
   const fetchDashboardData = async (name: string) => {
-    const res = await fetch(`/api/chat/list?username=${name}`);
+    const res = await fetch(`/api/chat/list?username=${name}&t=${Date.now()}`, { cache: 'no-store' });
     const data = await res.json();
     if (res.ok) setChats(data.chats);
   };
@@ -162,29 +166,30 @@ export default function Dashboard() {
     await fetch('/api/messages/read', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ chatId, username }) });
   };
 
+  // ÇÖZÜM: Mesajların da cache'e takılmaması için no-store eklendi
   const fetchMessages = async (chatId: string) => {
-    const res = await fetch(`/api/messages?chatId=${chatId}`);
+    const res = await fetch(`/api/messages?chatId=${chatId}&t=${Date.now()}`, { cache: 'no-store' });
     const data = await res.json();
     if (res.ok) { setMessages(data.messages); scrollToBottom(); markMessagesAsRead(chatId); }
   };
 
   const handleSelectChat = (chat: any) => { setSelectedChat(chat); fetchMessages(chat._id); setIsMobileChatOpen(true); };
 
+  // ÇÖZÜM: Pusher bağlantıları birleştirildi ve temizleme işlemleri (unbind) kusursuz hale getirildi
   useEffect(() => {
     if (!username) return;
-    const pusher = new Pusher(process.env.NEXT_PUBLIC_PUSHER_KEY!, { 
+    const p = new Pusher(process.env.NEXT_PUBLIC_PUSHER_KEY!, { 
       cluster: process.env.NEXT_PUBLIC_PUSHER_CLUSTER!,
       forceTLS: true 
     });
+    setPusherClient(p);
     
-    const userChannel = pusher.subscribe(`user-${username}`);
+    const userChannel = p.subscribe(`user-${username}`);
     
-    // Arkadaş eklenince listeyi yenile
     userChannel.bind('chat-updated', () => {
       fetchDashboardData(username);
     });
 
-    // Biri sohbeti silerse anında listeyi temizle ve ekranı kapat
     userChannel.bind('chat-deleted', (data: { chatId: string }) => {
       setChats((prev) => prev.filter((c: any) => c._id !== data.chatId));
       setSelectedChat((prev: any) => {
@@ -198,15 +203,14 @@ export default function Dashboard() {
 
     return () => {
       userChannel.unbind_all();
-      pusher.unsubscribe(`user-${username}`);
-      pusher.disconnect();
+      p.unsubscribe(`user-${username}`);
+      p.disconnect();
     };
   }, [username]);
 
   useEffect(() => {
-    if (!selectedChat) return;
-    const pusher = new Pusher(process.env.NEXT_PUBLIC_PUSHER_KEY!, { cluster: process.env.NEXT_PUBLIC_PUSHER_CLUSTER! });
-    const channel = pusher.subscribe(selectedChat._id);
+    if (!pusherClient || !selectedChat) return;
+    const channel = pusherClient.subscribe(selectedChat._id);
 
     channel.bind('new-message', (data: any) => {
       if (data.sender !== username) {
@@ -220,8 +224,12 @@ export default function Dashboard() {
     });
     channel.bind('typing', (data: any) => { if (data.username !== username) { setTypingUser(data.isTyping ? data.username : null); scrollToBottom(); } });
     channel.bind('messages-read', (data: any) => { if (data.reader !== username) { setMessages((prev) => prev.map(msg => ({ ...msg, isRead: true }))); } });
-    return () => pusher.unsubscribe(selectedChat._id);
-  }, [selectedChat, username, notif]);
+    
+    return () => {
+      channel.unbind_all();
+      pusherClient.unsubscribe(selectedChat._id);
+    };
+  }, [pusherClient, selectedChat, username, notif]);
 
   const handleTyping = (e: any) => {
     setNewMessage(e.target.value);
@@ -241,7 +249,6 @@ export default function Dashboard() {
     setMessages((prev) => [...prev, tempMsg]);
     setNewMessage('');
     
-    // YENİ EKLENEN: Mesaj gidince kutuyu eski orijinal boyuna döndür
     if (textareaRef.current) {
       textareaRef.current.style.height = 'auto';
     }
@@ -269,7 +276,6 @@ export default function Dashboard() {
     } catch (error) {
       setStatus(dict[lang].connectionError);
     } finally {
-      // NE OLURSA OLSUN (Hata bile verse) YÜKLEMEYİ DURDUR!
       setLoading(false);
     }
   };
@@ -392,8 +398,10 @@ export default function Dashboard() {
                     const isMe = msg.sender === username;
                     return (
                       <div key={index} className={`flex ${isMe ? 'justify-end' : 'justify-start'} animate-in fade-in slide-in-from-bottom-2 duration-300`}>
-                        <div className={`max-w-[85%] md:max-w-[65%] px-4 py-2.5 md:px-6 md:py-3.5 backdrop-blur-2xl ${isMe ? 'rounded-[20px] md:rounded-[24px] rounded-br-[6px] md:rounded-br-[8px]' : 'rounded-[20px] md:rounded-[24px] rounded-bl-[6px] md:rounded-bl-[8px]'}`} style={{ background: isMe ? `linear-gradient(135deg, rgba(${c.rgb}, 0.35) 0%, rgba(${c.rgb}, 0.2) 100%)` : s.msgBubble, border: `1.5px solid ${isMe ? `rgba(${c.rgb}, 0.4)` : s.border}` }}>
-                          <p className="whitespace-pre-wrap break-all leading-relaxed text-sm md:text-base" style={{ color: isMe ? c.text : s.text }}>{msg.text}</p>
+                        {/* ÇÖZÜM: 'overflow-hidden break-words' eklenerek AAAAAA taşması engellendi */}
+                        <div className={`max-w-[85%] md:max-w-[65%] px-4 py-2.5 md:px-6 md:py-3.5 backdrop-blur-2xl ${isMe ? 'rounded-[20px] md:rounded-[24px] rounded-br-[6px] md:rounded-br-[8px]' : 'rounded-[20px] md:rounded-[24px] rounded-bl-[6px] md:rounded-bl-[8px]'} overflow-hidden break-words`} style={{ background: isMe ? `linear-gradient(135deg, rgba(${c.rgb}, 0.35) 0%, rgba(${c.rgb}, 0.2) 100%)` : s.msgBubble, border: `1.5px solid ${isMe ? `rgba(${c.rgb}, 0.4)` : s.border}` }}>
+                          {/* ÇÖZÜM: 'break-words break-all' eklenerek uzun metin zorla alt satıra atıldı */}
+                          <p className="whitespace-pre-wrap break-words break-all leading-relaxed text-sm md:text-base" style={{ color: isMe ? c.text : s.text }}>{msg.text}</p>
                           <div className="flex items-center gap-2 mt-2 justify-end">
                             <span className="text-[11px] opacity-80" style={{ color: isMe ? c.text : s.textMuted }}>{new Date(msg.createdAt).toLocaleTimeString('tr-TR', { hour: '2-digit', minute: '2-digit' })}</span>
                             {isMe && (
@@ -410,7 +418,6 @@ export default function Dashboard() {
                 )}
                 {typingUser && (
                   <div className="flex justify-start animate-in fade-in slide-in-from-bottom-2 duration-300">
-                    {/* YENİ: Paddingler ve noktalar WhatsApp ebatlarına küçültüldü */}
                     <div className="px-4 py-3 rounded-[20px] rounded-bl-[6px] backdrop-blur-2xl flex items-center gap-1.5 h-[38px]" style={{ background: s.msgBubble, border: `1.5px solid ${s.border}` }}>
                       <div className="w-1.5 h-1.5 rounded-full animate-bounce" style={{ background: c.hex }} />
                       <div className="w-1.5 h-1.5 rounded-full animate-bounce" style={{ background: c.hex, animationDelay: '150ms' }} />
