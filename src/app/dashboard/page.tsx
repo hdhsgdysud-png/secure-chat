@@ -185,6 +185,18 @@ export default function Dashboard() {
         });
       }
     });
+
+    // 2. YENİ EKLENEN: Karşı taraf sohbeti silerse anında ekrandan uçur (Sunucuyu beklemeden)
+    userChannel.bind('chat-deleted', (data: { chatId: string }) => {
+      setChats((prev) => prev.filter((c: any) => c._id !== data.chatId));
+      setSelectedChat((prev: any) => {
+        if (prev && prev._id === data.chatId) {
+          setIsMobileChatOpen(false); // Telefondaysa sohbet ekranını kapatır
+          return null;
+        }
+        return prev;
+      });
+    });
     return () => pusher.unsubscribe(`user-${username}`);
   }, [username]);
 

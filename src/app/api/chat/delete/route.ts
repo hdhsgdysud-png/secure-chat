@@ -18,16 +18,14 @@ export async function DELETE(req: NextRequest) {
 
     await dbConnect();
 
-    // 1. Önce veritabanından siliyoruz
     const deletedChat = await Chat.findByIdAndDelete(chatId);
     if (!deletedChat) return NextResponse.json({ error: 'Bulunamadı' }, { status: 404 });
 
-    // 2. Sinyal gönderme işini 'try-catch' içine alıyoruz ki 
-    // sinyal gitmese bile arayüzde hata patlamasın (Çünkü silme bitti)
     try {
       if (deletedChat.participants && Array.isArray(deletedChat.participants)) {
         const triggers = deletedChat.participants.map((user: string) => 
-          pusher.trigger(`user-${user}`, 'chat-updated', {}).catch(e => console.log("Pusher hatası yoksayıldı"))
+          // DEĞİŞİKLİK BURADA: Karşı tarafa spesifik olarak "chat-deleted" ve ID'yi yolluyoruz.
+          pusher.trigger(`user-${user}`, 'chat-deleted', { chatId: chatId }).catch(e => console.log("Pusher hatası"))
         );
         await Promise.all(triggers);
       }
@@ -35,7 +33,6 @@ export async function DELETE(req: NextRequest) {
       console.error("Sinyal hatası ama silme işlemi başarılı");
     }
 
-    // Her durumda başarı döndür
     return NextResponse.json({ message: 'Başarılı' }, { status: 200 });
   } catch (error) {
     return NextResponse.json({ error: 'Sunucu hatası' }, { status: 500 });
