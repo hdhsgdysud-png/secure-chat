@@ -207,7 +207,7 @@ export default function Dashboard() {
     return () => pusher.unsubscribe(selectedChat._id);
   }, [selectedChat, username, notif]);
 
-  const handleTyping = (e: React.ChangeEvent<HTMLInputElement>) => {
+  const handleTyping = (e: any) => {
     setNewMessage(e.target.value);
     if (!selectedChat) return;
     fetch('/api/chat/typing', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ chatId: selectedChat._id, username, isTyping: true }) });
@@ -363,7 +363,7 @@ export default function Dashboard() {
                     return (
                       <div key={index} className={`flex ${isMe ? 'justify-end' : 'justify-start'} animate-in fade-in slide-in-from-bottom-2 duration-300`}>
                         <div className={`max-w-[85%] md:max-w-[65%] px-4 py-2.5 md:px-6 md:py-3.5 backdrop-blur-2xl ${isMe ? 'rounded-[20px] md:rounded-[24px] rounded-br-[6px] md:rounded-br-[8px]' : 'rounded-[20px] md:rounded-[24px] rounded-bl-[6px] md:rounded-bl-[8px]'}`} style={{ background: isMe ? `linear-gradient(135deg, rgba(${c.rgb}, 0.35) 0%, rgba(${c.rgb}, 0.2) 100%)` : s.msgBubble, border: `1.5px solid ${isMe ? `rgba(${c.rgb}, 0.4)` : s.border}` }}>
-                          <p className="break-words leading-relaxed text-sm md:text-base" style={{ color: isMe ? c.text : s.text }}>{msg.text}</p>
+                          <p className="whitespace-pre-wrap break-all leading-relaxed text-sm md:text-base" style={{ color: isMe ? c.text : s.text }}>{msg.text}</p>
                           <div className="flex items-center gap-2 mt-2 justify-end">
                             <span className="text-[11px] opacity-80" style={{ color: isMe ? c.text : s.textMuted }}>{new Date(msg.createdAt).toLocaleTimeString('tr-TR', { hour: '2-digit', minute: '2-digit' })}</span>
                             {isMe && (
@@ -391,9 +391,26 @@ export default function Dashboard() {
               </div>
 
               <div className="p-4 md:p-5 backdrop-blur-2xl border-t" style={{ background: 'rgba(128, 128, 128, 0.03)', borderColor: s.border }}>
-                <form onSubmit={sendMessage} className="flex gap-3">
+                <form onSubmit={sendMessage} className="flex gap-3 items-end">
                   <div className="flex-1 relative">
-                    <input type="text" value={newMessage} onChange={handleTyping} placeholder={t.typeMessage} className="w-full px-6 py-4 rounded-[26px] backdrop-blur-2xl transition-all duration-300 focus:outline-none" style={{ background: 'rgba(128, 128, 128, 0.08)', border: `1.5px solid ${s.border}`, color: s.text }} />
+                    <textarea 
+                      value={newMessage} 
+                      onChange={handleTyping} 
+                      placeholder={t.typeMessage} 
+                      rows={1}
+                      className="w-full px-6 py-4 rounded-[26px] backdrop-blur-2xl focus:outline-none resize-none scrollbar-hide" 
+                      style={{ 
+                        background: 'rgba(128, 128, 128, 0.08)', 
+                        border: `1.5px solid ${s.border}`, 
+                        color: s.text,
+                        minHeight: '56px',
+                        maxHeight: '120px'
+                      }} 
+                      onInput={(e: any) => {
+                        e.target.style.height = 'auto';
+                        e.target.style.height = e.target.scrollHeight + 'px';
+                      }}
+                    />
                   </div>
                   <button type="submit" disabled={!newMessage.trim()} className="w-14 h-14 rounded-full backdrop-blur-2xl transition-all duration-300 hover:scale-105 active:scale-95 flex items-center justify-center flex-shrink-0 disabled:opacity-40" style={{ background: newMessage.trim() ? `linear-gradient(135deg, ${c.hex} 0%, ${c.hexEnd} 100%)` : 'rgba(128, 128, 128, 0.08)', border: `1.5px solid rgba(${c.rgb}, 0.4)` }}>
                     <Send className="w-5 h-5" style={{ color: newMessage.trim() ? c.text : s.textMuted }} />
