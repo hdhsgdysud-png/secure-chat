@@ -52,6 +52,7 @@ export default function Dashboard() {
   const [messages, setMessages] = useState<any[]>([]);
   const [newMessage, setNewMessage] = useState('');
   const messagesEndRef = useRef<HTMLDivElement>(null);
+  const textareaRef = useRef<HTMLTextAreaElement>(null);
   const [typingUser, setTypingUser] = useState<string | null>(null);
   const typingTimeoutRef = useRef<NodeJS.Timeout | null>(null);
 
@@ -224,6 +225,12 @@ export default function Dashboard() {
     const tempMsg = { _id: Date.now(), sender: username, text: newMessage, createdAt: new Date(), isRead: false };
     setMessages((prev) => [...prev, tempMsg]);
     setNewMessage('');
+    
+    // YENİ EKLENEN: Mesaj gidince kutuyu eski orijinal boyuna döndür
+    if (textareaRef.current) {
+      textareaRef.current.style.height = 'auto';
+    }
+    
     scrollToBottom();
 
     await fetch('/api/messages', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ chatId: selectedChat._id, sender: username, text: tempMsg.text }) });
@@ -380,10 +387,11 @@ export default function Dashboard() {
                 )}
                 {typingUser && (
                   <div className="flex justify-start animate-in fade-in slide-in-from-bottom-2 duration-300">
-                    <div className="px-6 py-4 rounded-[24px] rounded-bl-[8px] backdrop-blur-2xl flex gap-1.5" style={{ background: s.msgBubble, border: `1.5px solid ${s.border}` }}>
-                      <div className="w-2.5 h-2.5 rounded-full animate-bounce" style={{ background: c.hex }} />
-                      <div className="w-2.5 h-2.5 rounded-full animate-bounce" style={{ background: c.hex, animationDelay: '150ms' }} />
-                      <div className="w-2.5 h-2.5 rounded-full animate-bounce" style={{ background: c.hex, animationDelay: '300ms' }} />
+                    {/* YENİ: Paddingler ve noktalar WhatsApp ebatlarına küçültüldü */}
+                    <div className="px-4 py-3 rounded-[20px] rounded-bl-[6px] backdrop-blur-2xl flex items-center gap-1.5 h-[38px]" style={{ background: s.msgBubble, border: `1.5px solid ${s.border}` }}>
+                      <div className="w-1.5 h-1.5 rounded-full animate-bounce" style={{ background: c.hex }} />
+                      <div className="w-1.5 h-1.5 rounded-full animate-bounce" style={{ background: c.hex, animationDelay: '150ms' }} />
+                      <div className="w-1.5 h-1.5 rounded-full animate-bounce" style={{ background: c.hex, animationDelay: '300ms' }} />
                     </div>
                   </div>
                 )}
@@ -394,6 +402,7 @@ export default function Dashboard() {
                 <form onSubmit={sendMessage} className="flex gap-3 items-end">
                   <div className="flex-1 relative">
                     <textarea 
+                      ref={textareaRef} /* YENİ EKLENDİ: Kutuyu küçültmek için referans */
                       value={newMessage} 
                       onChange={handleTyping} 
                       placeholder={t.typeMessage} 
