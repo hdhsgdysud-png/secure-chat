@@ -245,7 +245,7 @@ export default function Dashboard() {
       <div className="h-full max-w-[1920px] mx-auto flex relative z-10">
         
         <div className={`w-full md:w-[380px] flex-col h-full backdrop-blur-3xl border-r ${isMobileChatOpen ? 'hidden md:flex' : 'flex'}`} style={{ background: s.surface, borderColor: s.border }}>
-          <div className="p-6 border-b flex justify-between items-center" style={{ borderColor: s.border }}>
+          <div className="px-6 pb-6 border-b flex justify-between items-center" style={{ borderColor: s.border, paddingTop: 'calc(env(safe-area-inset-top) + 1.5rem)' }}>
             <h1 className="text-2xl tracking-tight font-bold inline-block bg-clip-text text-transparent" style={{ backgroundImage: `linear-gradient(135deg, ${c.hex} 0%, ${c.hexEnd} 100%)` }}>
               FALCON
             </h1>
@@ -314,7 +314,7 @@ export default function Dashboard() {
             </div>
           ) : (
             <div className="flex flex-col h-full backdrop-blur-2xl" style={{ background: 'rgba(128, 128, 128, 0.01)' }}>
-              <div className="px-6 py-5 backdrop-blur-3xl border-b" style={{ background: 'rgba(128, 128, 128, 0.03)', borderColor: s.border }}>
+              <div className="px-6 pb-5 backdrop-blur-3xl border-b" style={{ background: 'rgba(128, 128, 128, 0.03)', borderColor: s.border, paddingTop: 'calc(env(safe-area-inset-top) + 1.25rem)' }}>
                 <div className="flex items-center justify-between">
                   <div className="flex items-center gap-3">
                     <button onClick={() => setIsMobileChatOpen(false)} className="md:hidden mr-2" style={{ color: c.hex }}><ArrowLeft className="w-6 h-6" /></button>
