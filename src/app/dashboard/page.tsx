@@ -257,13 +257,21 @@ export default function Dashboard() {
     e.preventDefault();
     if (friendCode.length !== 6) return;
     setLoading(true); setStatus('');
-    const res = await fetch('/api/chat/add', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ currentUser: username, friendCode }) });
-    const data = await res.json();
-    if (res.ok) { 
-      setStatus(dict[lang].success); setFriendCode(''); fetchDashboardData(username);
-      setTimeout(() => setShowAddFriendModal(false), 1000);
-    } else { setStatus(data.error || dict[lang].error); }
-    setLoading(false);
+    try {
+      const res = await fetch('/api/chat/add', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ currentUser: username, friendCode }) });
+      const data = await res.json();
+      if (res.ok) { 
+        setStatus(dict[lang].success); setFriendCode(''); fetchDashboardData(username);
+        setTimeout(() => setShowAddFriendModal(false), 1000);
+      } else { 
+        setStatus(data.error || dict[lang].error); 
+      }
+    } catch (error) {
+      setStatus(dict[lang].connectionError);
+    } finally {
+      // NE OLURSA OLSUN (Hata bile verse) YÜKLEMEYİ DURDUR!
+      setLoading(false);
+    }
   };
 
   const deleteChat = async () => {

@@ -1,6 +1,7 @@
 import dbConnect from '@/lib/mongodb';
+import User from '@/models/User';
 import Chat from '@/models/Chat';
-import { NextRequest, NextResponse } from 'next/server';
+import { NextResponse } from 'next/server';
 import Pusher from 'pusher';
 
 const pusher = new Pusher({
@@ -11,27 +12,29 @@ const pusher = new Pusher({
   useTLS: true,
 });
 
-export async function DELETE(req: NextRequest) {
+export async function POST(req: Request) {
   try {
-    const chatId = req.nextUrl.searchParams.get('chatId');
-    if (!chatId) return NextResponse.json({ error: 'ID lazım' }, { status: 400 });
-
+    const { currentUser, friendCode } = await req.json();
     await dbConnect();
-    const deletedChat = await Chat.findByIdAndDelete(chatId);
-    if (!deletedChat) return NextResponse.json({ error: 'Bulunamadı' }, { status: 404 });
 
-    try {
-      if (deletedChat.participants) {
-        // chat-deleted sinyalini ve chatId'yi gönderiyoruz
-        const triggers = deletedChat.participants.map((user: string) => 
-          pusher.trigger(`user-${user}`, 'chat-deleted', { chatId }).catch(e => {})
-        );
-        await Promise.all(triggers);
-      }
-    } catch (e) { console.log("Sinyal gitmedi ama silme okey."); }
+    const friend = await User.findOne({ userCode: friendCode });
+    if (!friend) return NextResponse.json({ error: 'Kod geçersiz!' }, { status: 404 });
+    
+    if (friend.username === currentUser) return NextResponse.json({ error: 'Kendini ekleyemezsin!' }, { status: 400 });
 
-    return NextResponse.json({ message: 'Silindi' }, { status: 200 });
+    const existingChat = await Chat.findOne({ participants: { $all: [currentUser, friend.username] } });
+    if (existingChat) return NextResponse.json({ error: 'Zaten ekli!' }, { status: 400 });
+
+    const newChat = new Chat({ participants: [currentUser, friend.username], messages: [] });
+    await newChat.save();
+
+    // ÇÖZÜM: 'await' kelimelerini sildik! Pusher takılsa bile sunucu beklemeden "Başarılı" diyecek.
+    pusher.trigger(`user-${friend.username}`, 'chat-updated', {}).catch(() => {});
+    pusher.trigger(`user-${currentUser}`, 'chat-updated', {}).catch(() => {});
+
+    return NextResponse.json({ message: 'Başarılı!' }, { status: 200 });
   } catch (error) {
-    return NextResponse.json({ error: 'Hata!' }, { status: 500 });
+    console.error("Ekleme Hatası:", error);
+    return NextResponse.json({ error: 'Sunucu hatası!' }, { status: 500 });
   }
 }
