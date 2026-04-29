@@ -172,32 +172,35 @@ export default function Dashboard() {
 
   useEffect(() => {
     if (!username) return;
-    const pusher = new Pusher(process.env.NEXT_PUBLIC_PUSHER_KEY!, { cluster: process.env.NEXT_PUBLIC_PUSHER_CLUSTER! });
+    const pusher = new Pusher(process.env.NEXT_PUBLIC_PUSHER_KEY!, { 
+      cluster: process.env.NEXT_PUBLIC_PUSHER_CLUSTER!,
+      forceTLS: true 
+    });
+    
     const userChannel = pusher.subscribe(`user-${username}`);
-    userChannel.bind('chat-updated', async () => {
-      const res = await fetch(`/api/chat/list?username=${username}`);
-      const data = await res.json();
-      if (res.ok) {
-        setChats(data.chats);
-        setSelectedChat((prev: any) => {
-          if (prev && !data.chats.some((c: any) => c._id === prev._id)) { setIsMobileChatOpen(false); return null; }
-          return prev;
-        });
-      }
+    
+    // Arkadaş eklenince listeyi yenile
+    userChannel.bind('chat-updated', () => {
+      fetchDashboardData(username);
     });
 
-    // 2. YENİ EKLENEN: Karşı taraf sohbeti silerse anında ekrandan uçur (Sunucuyu beklemeden)
+    // Biri sohbeti silerse anında listeyi temizle ve ekranı kapat
     userChannel.bind('chat-deleted', (data: { chatId: string }) => {
       setChats((prev) => prev.filter((c: any) => c._id !== data.chatId));
       setSelectedChat((prev: any) => {
         if (prev && prev._id === data.chatId) {
-          setIsMobileChatOpen(false); // Telefondaysa sohbet ekranını kapatır
+          setIsMobileChatOpen(false);
           return null;
         }
         return prev;
       });
     });
-    return () => pusher.unsubscribe(`user-${username}`);
+
+    return () => {
+      userChannel.unbind_all();
+      pusher.unsubscribe(`user-${username}`);
+      pusher.disconnect();
+    };
   }, [username]);
 
   useEffect(() => {

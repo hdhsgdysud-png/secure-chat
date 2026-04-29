@@ -1,7 +1,6 @@
 import dbConnect from '@/lib/mongodb';
-import User from '@/models/User';
 import Chat from '@/models/Chat';
-import { NextResponse } from 'next/server';
+import { NextRequest, NextResponse } from 'next/server';
 import Pusher from 'pusher';
 
 const pusher = new Pusher({
@@ -12,45 +11,27 @@ const pusher = new Pusher({
   useTLS: true,
 });
 
-export async function POST(req: Request) {
+export async function DELETE(req: NextRequest) {
   try {
-    const { currentUser, friendCode } = await req.json();
+    const chatId = req.nextUrl.searchParams.get('chatId');
+    if (!chatId) return NextResponse.json({ error: 'ID lazım' }, { status: 400 });
+
     await dbConnect();
+    const deletedChat = await Chat.findByIdAndDelete(chatId);
+    if (!deletedChat) return NextResponse.json({ error: 'Bulunamadı' }, { status: 404 });
 
-    const friend = await User.findOne({ userCode: friendCode });
-    if (!friend) {
-      return NextResponse.json({ error: 'Bu koda sahip biri bulunamadı! Kodu kontrol et.' }, { status: 404 });
-    }
-
-    if (friend.username === currentUser) {
-      return NextResponse.json({ error: 'Kendinle sohbet edemezsin Ostam!' }, { status: 400 });
-    }
-
-    const existingChat = await Chat.findOne({
-      participants: { $all: [currentUser, friend.username] }
-    });
-
-    if (existingChat) {
-      return NextResponse.json({ error: 'Bu kişiyle zaten sohbetin var!' }, { status: 400 });
-    }
-
-    const newChat = new Chat({
-      participants: [currentUser, friend.username],
-      messages: []
-    });
-    await newChat.save();
-
-    // ÇÖZÜM: Pusher sinyalini try-catch içine aldık ki Vercel takılsa bile işlem iptal olmasın.
     try {
-      await pusher.trigger(`user-${friend.username}`, 'chat-updated', {});
-      await pusher.trigger(`user-${currentUser}`, 'chat-updated', {});
-    } catch (err) {
-      console.log("Pusher sinyal gecikmesi yoksayıldı, sohbet eklendi.");
-    }
+      if (deletedChat.participants) {
+        // chat-deleted sinyalini ve chatId'yi gönderiyoruz
+        const triggers = deletedChat.participants.map((user: string) => 
+          pusher.trigger(`user-${user}`, 'chat-deleted', { chatId }).catch(e => {})
+        );
+        await Promise.all(triggers);
+      }
+    } catch (e) { console.log("Sinyal gitmedi ama silme okey."); }
 
-    return NextResponse.json({ message: 'Sohbet başarıyla başlatıldı!' }, { status: 200 });
-
-  } catch (error: any) {
-    return NextResponse.json({ error: 'Sunucu hatası oluştu!' }, { status: 500 });
+    return NextResponse.json({ message: 'Silindi' }, { status: 200 });
+  } catch (error) {
+    return NextResponse.json({ error: 'Hata!' }, { status: 500 });
   }
 }
