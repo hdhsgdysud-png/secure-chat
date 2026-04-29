@@ -24,8 +24,8 @@ export async function DELETE(req: NextRequest) {
     try {
       if (deletedChat.participants && Array.isArray(deletedChat.participants)) {
         const triggers = deletedChat.participants.map((user: string) => 
-          // DEĞİŞİKLİK BURADA: Karşı tarafa spesifik olarak "chat-deleted" ve ID'yi yolluyoruz.
-          pusher.trigger(`user-${user}`, 'chat-deleted', { chatId: chatId }).catch(e => console.log("Pusher hatası"))
+          // ÇÖZÜM: Arayüzün beklediği 'chat-deleted' ismini verdik ve chatId'yi gönderdik!
+          pusher.trigger(`user-${user}`, 'chat-deleted', { chatId: chatId }).catch(e => console.log("Pusher hatası yoksayıldı"))
         );
         await Promise.all(triggers);
       }
