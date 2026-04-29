@@ -402,7 +402,7 @@ export default function Dashboard() {
                 <form onSubmit={sendMessage} className="flex gap-3 items-end">
                   <div className="flex-1 relative">
                     <textarea 
-                      ref={textareaRef} /* YENİ EKLENDİ: Kutuyu küçültmek için referans */
+                      ref={textareaRef} 
                       value={newMessage} 
                       onChange={handleTyping} 
                       placeholder={t.typeMessage} 
