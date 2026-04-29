@@ -1,6 +1,6 @@
 import dbConnect from '@/lib/mongodb';
 import Chat from '@/models/Chat';
-import { NextResponse } from 'next/server';
+import { NextRequest, NextResponse } from 'next/server';
 import Pusher from 'pusher';
 
 const pusher = new Pusher({
@@ -11,10 +11,10 @@ const pusher = new Pusher({
   useTLS: true,
 });
 
-export async function DELETE(req: Request) {
+export async function DELETE(req: NextRequest) {
   try {
-    const { searchParams } = new URL(req.url);
-    const chatId = searchParams.get('chatId');
+    // 1. DEĞİŞİKLİK: Vercel ortamında çökmeyi önleyen en güvenli parametre alma yöntemi
+    const chatId = req.nextUrl.searchParams.get('chatId');
 
     if (!chatId) {
       return NextResponse.json({ error: 'Sohbet ID si gerekli!' }, { status: 400 });
@@ -22,19 +22,24 @@ export async function DELETE(req: Request) {
 
     await dbConnect();
 
-    // Veritabanından sohbeti ve içindeki tüm mesajları kalıcı olarak uçuruyoruz (Hard Delete)
+    // Veritabanından sohbeti kalıcı olarak uçuruyoruz (Hard Delete)
     const deletedChat = await Chat.findByIdAndDelete(chatId);
 
     if (!deletedChat) {
       return NextResponse.json({ error: 'Sohbet zaten silinmiş veya bulunamadı.' }, { status: 404 });
     }
 
-    // Sohbet silindiğinde içindeki iki kişiye de "Listeyi yenileyin ve açık sohbet varsa kapatın" sinyali gönder
-    await pusher.trigger(`user-${deletedChat.participants[0]}`, 'chat-updated', {});
-    await pusher.trigger(`user-${deletedChat.participants[1]}`, 'chat-updated', {});
+    // 2. DEĞİŞİKLİK: Eğer participants dizisi sağlamsa döngüye girip iki tarafa da sinyal yolla (Çökmeyi önler)
+    if (deletedChat.participants && Array.isArray(deletedChat.participants)) {
+      for (const user of deletedChat.participants) {
+        await pusher.trigger(`user-${user}`, 'chat-updated', {});
+      }
+    }
 
     return NextResponse.json({ message: 'Sohbet veritabanından tamamen kazındı! 💥' }, { status: 200 });
   } catch (error) {
+    // 3. DEĞİŞİKLİK: Eğer yine patlarsa Vercel panelinde hatanın ne olduğunu görebilelim
+    console.error("SOHBET SİLİNİRKEN HATA OLUŞTU:", error);
     return NextResponse.json({ error: 'Sohbet silinirken sunucu hatası oluştu!' }, { status: 500 });
   }
 }
