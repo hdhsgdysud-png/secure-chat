@@ -4,10 +4,11 @@ import { useRouter } from 'next/navigation';
 import Pusher from 'pusher-js';
 import { Shield, Trash2, Check, Send, X, ArrowLeft, MessageSquare, Settings, RefreshCw } from 'lucide-react';
 
-// --- KLAVYE EKLENTİLERİ ---
+// --- KLAVYE VE STATUS BAR EKLENTİLERİ ---
 import { Keyboard } from '@capacitor/keyboard';
+import { StatusBar, Style } from '@capacitor/status-bar';
 import { Capacitor } from '@capacitor/core';
-// --------------------------
+// ----------------------------------------
 
 const dict: any = {
   en: { chats: "Chats", addFriend: "+ Add Friend", noChats: "No chats yet. Add a friend from above!", openChat: "Click to open chat...", logout: "Secure Logout", yourCode: "Your Code", selectChat: "Select a chat to start", orAddFriend: "Or add a new friend from the menu", encrypted: "AES-256 Encrypted", delete: "Delete", emptyHistory: "Message history is empty.", typeMessage: "Type a message...", send: "Send", typing: "Typing...", settings: "Settings", language: "Language", theme: "Theme", accentColor: "Accent Color", notifications: "Notifications", save: "Save changes", dark: "Dark", light: "Light", black: "Pitch Black", on: "On", off: "Off", friendCode: "Friend Code", enter6Digit: "Enter 6-digit code", startChat: "Start Chat", searching: "Searching...", success: "Chat created! ✅", error: "An error occurred!", confirmDelete: "Are you sure you want to permanently delete this chat? No traces will be left!", connectionError: "Connection error!" },
@@ -35,6 +36,25 @@ export default function Dashboard() {
   const [isMounted, setIsMounted] = useState(false);
   const [isRefreshing, setIsRefreshing] = useState(false);
 
+  const [lang, setLang] = useState('en');
+  const [theme, setTheme] = useState('dark');
+  const [accent, setAccent] = useState('cyan');
+  const [notif, setNotif] = useState(true);
+  const [showSettings, setShowSettings] = useState(false);
+
+  const [showAddFriendModal, setShowAddFriendModal] = useState(false);
+  const [friendCode, setFriendCode] = useState('');
+  const [isMobileChatOpen, setIsMobileChatOpen] = useState(false);
+  const [chats, setChats] = useState([]);
+  const [loading, setLoading] = useState(false);
+  const [status, setStatus] = useState('');
+  const [selectedChat, setSelectedChat] = useState<any>(null);
+  const [messages, setMessages] = useState<any[]>([]);
+  const [newMessage, setNewMessage] = useState('');
+  const messagesEndRef = useRef<HTMLDivElement>(null);
+  const [typingUser, setTypingUser] = useState<string | null>(null);
+  const typingTimeoutRef = useRef<NodeJS.Timeout | null>(null);
+
   // --- KLAVYENİN BEYAZ ÇUBUĞUNU GİZLEYEN KOD ---
   useEffect(() => {
     const hideKeyboardBar = async () => {
@@ -49,6 +69,29 @@ export default function Dashboard() {
     hideKeyboardBar();
   }, []);
   // ----------------------------------------------
+
+  // --- DURUM ÇUBUĞUNU (STATUS BAR) DİNAMİK YAPAN KOD ---
+  useEffect(() => {
+    const syncStatusBar = async () => {
+      if (Capacitor.isNativePlatform()) {
+        try {
+          // Uygulamayı durum çubuğunun ALTINA yayar (Tam ekran cam hissi)
+          await StatusBar.setOverlaysWebView({ overlay: true });
+          
+          // Temaya göre saat/şarj ikonlarının rengini ayarla
+          if (theme === 'light') {
+            await StatusBar.setStyle({ style: Style.Light }); // Siyah ikonlar
+          } else {
+            await StatusBar.setStyle({ style: Style.Dark }); // Beyaz ikonlar
+          }
+        } catch (e) {
+          console.error("Durum çubuğu ayarlanamadı", e);
+        }
+      }
+    };
+    syncStatusBar();
+  }, [theme]);
+  // ----------------------------------------------------
 
   const handleRefreshCode = async (action: 'auto' | 'manual', currentUsername?: string) => {
     const targetUser = currentUsername || username;
@@ -71,25 +114,6 @@ export default function Dashboard() {
     }
     if (action === 'manual') setTimeout(() => setIsRefreshing(false), 500);
   };
-
-  const [lang, setLang] = useState('en');
-  const [theme, setTheme] = useState('dark');
-  const [accent, setAccent] = useState('cyan');
-  const [notif, setNotif] = useState(true);
-  const [showSettings, setShowSettings] = useState(false);
-
-  const [showAddFriendModal, setShowAddFriendModal] = useState(false);
-  const [friendCode, setFriendCode] = useState('');
-  const [isMobileChatOpen, setIsMobileChatOpen] = useState(false);
-  const [chats, setChats] = useState([]);
-  const [loading, setLoading] = useState(false);
-  const [status, setStatus] = useState('');
-  const [selectedChat, setSelectedChat] = useState<any>(null);
-  const [messages, setMessages] = useState<any[]>([]);
-  const [newMessage, setNewMessage] = useState('');
-  const messagesEndRef = useRef<HTMLDivElement>(null);
-  const [typingUser, setTypingUser] = useState<string | null>(null);
-  const typingTimeoutRef = useRef<NodeJS.Timeout | null>(null);
 
   const fetchDashboardData = async (name: string) => {
     const res = await fetch(`/api/chat/list?username=${name}`);
