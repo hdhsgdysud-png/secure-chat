@@ -13,33 +13,31 @@ const pusher = new Pusher({
 
 export async function DELETE(req: NextRequest) {
   try {
-    // 1. DEĞİŞİKLİK: Vercel ortamında çökmeyi önleyen en güvenli parametre alma yöntemi
     const chatId = req.nextUrl.searchParams.get('chatId');
-
-    if (!chatId) {
-      return NextResponse.json({ error: 'Sohbet ID si gerekli!' }, { status: 400 });
-    }
+    if (!chatId) return NextResponse.json({ error: 'ID gerekli' }, { status: 400 });
 
     await dbConnect();
 
-    // Veritabanından sohbeti kalıcı olarak uçuruyoruz (Hard Delete)
+    // 1. Önce veritabanından siliyoruz
     const deletedChat = await Chat.findByIdAndDelete(chatId);
+    if (!deletedChat) return NextResponse.json({ error: 'Bulunamadı' }, { status: 404 });
 
-    if (!deletedChat) {
-      return NextResponse.json({ error: 'Sohbet zaten silinmiş veya bulunamadı.' }, { status: 404 });
-    }
-
-    // 2. DEĞİŞİKLİK: Eğer participants dizisi sağlamsa döngüye girip iki tarafa da sinyal yolla (Çökmeyi önler)
-    if (deletedChat.participants && Array.isArray(deletedChat.participants)) {
-      for (const user of deletedChat.participants) {
-        await pusher.trigger(`user-${user}`, 'chat-updated', {});
+    // 2. Sinyal gönderme işini 'try-catch' içine alıyoruz ki 
+    // sinyal gitmese bile arayüzde hata patlamasın (Çünkü silme bitti)
+    try {
+      if (deletedChat.participants && Array.isArray(deletedChat.participants)) {
+        const triggers = deletedChat.participants.map((user: string) => 
+          pusher.trigger(`user-${user}`, 'chat-updated', {}).catch(e => console.log("Pusher hatası yoksayıldı"))
+        );
+        await Promise.all(triggers);
       }
+    } catch (pusherErr) {
+      console.error("Sinyal hatası ama silme işlemi başarılı");
     }
 
-    return NextResponse.json({ message: 'Sohbet veritabanından tamamen kazındı! 💥' }, { status: 200 });
+    // Her durumda başarı döndür
+    return NextResponse.json({ message: 'Başarılı' }, { status: 200 });
   } catch (error) {
-    // 3. DEĞİŞİKLİK: Eğer yine patlarsa Vercel panelinde hatanın ne olduğunu görebilelim
-    console.error("SOHBET SİLİNİRKEN HATA OLUŞTU:", error);
-    return NextResponse.json({ error: 'Sohbet silinirken sunucu hatası oluştu!' }, { status: 500 });
+    return NextResponse.json({ error: 'Sunucu hatası' }, { status: 500 });
   }
 }
