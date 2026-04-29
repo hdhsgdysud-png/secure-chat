@@ -3,12 +3,12 @@ import { useEffect, useState, useRef } from 'react';
 import { useRouter } from 'next/navigation';
 import Pusher from 'pusher-js';
 import { Shield, Trash2, Check, Send, X, ArrowLeft, MessageSquare, Settings, RefreshCw } from 'lucide-react';
-
-// --- KLAVYE VE STATUS BAR EKLENTİLERİ ---
 import { Keyboard } from '@capacitor/keyboard';
 import { StatusBar, Style } from '@capacitor/status-bar';
 import { Capacitor } from '@capacitor/core';
-// ----------------------------------------
+
+// YENİ VE EN KRİTİK EKLENTİ: TÜRKÇE KARAKTERLERİ ŞİFRELEYEN KOD (BUNSUZ F5 İSTER)
+const getSafeChannel = (name: string) => 'user-' + Array.from(name).map(c => c.charCodeAt(0).toString(16)).join('-');
 
 const dict: any = {
   en: { chats: "Chats", addFriend: "+ Add Friend", noChats: "No chats yet. Add a friend from above!", openChat: "Click to open chat...", logout: "Secure Logout", yourCode: "Your Code", selectChat: "Select a chat to start", orAddFriend: "Or add a new friend from the menu", encrypted: "AES-256 Encrypted", delete: "Delete", emptyHistory: "Message history is empty.", typeMessage: "Type a message...", send: "Send", typing: "Typing...", settings: "Settings", language: "Language", theme: "Theme", accentColor: "Accent Color", notifications: "Notifications", save: "Save changes", dark: "Dark", light: "Light", black: "Pitch Black", on: "On", off: "Off", friendCode: "Friend Code", enter6Digit: "Enter 6-digit code", startChat: "Start Chat", searching: "Searching...", success: "Chat created! ✅", error: "An error occurred!", confirmDelete: "Are you sure you want to permanently delete this chat? No traces will be left!", connectionError: "Connection error!" },
@@ -56,46 +56,32 @@ export default function Dashboard() {
   const [typingUser, setTypingUser] = useState<string | null>(null);
   const typingTimeoutRef = useRef<NodeJS.Timeout | null>(null);
 
-  // YENİ EKLENEN: Pusher bağlantısını tek bir merkezde tutmak için state
   const [pusherClient, setPusherClient] = useState<Pusher | null>(null);
 
-  // --- KLAVYENİN BEYAZ ÇUBUĞUNU GİZLEYEN KOD ---
   useEffect(() => {
     const hideKeyboardBar = async () => {
       if (Capacitor.isNativePlatform()) {
-        try {
-          await Keyboard.setAccessoryBarVisible({ isVisible: false });
-        } catch (error) {
-          console.error("Klavye çubuğu gizlenemedi:", error);
-        }
+        try { await Keyboard.setAccessoryBarVisible({ isVisible: false }); } catch (error) {}
       }
     };
     hideKeyboardBar();
   }, []);
-  // ----------------------------------------------
 
-  // --- DURUM ÇUBUĞUNU (STATUS BAR) DİNAMİK YAPAN KOD ---
   useEffect(() => {
     const syncStatusBar = async () => {
       if (Capacitor.isNativePlatform()) {
         try {
-          // Uygulamayı durum çubuğunun ALTINA yayar (Tam ekran cam hissi)
           await StatusBar.setOverlaysWebView({ overlay: true });
-          
-          // Temaya göre saat/şarj ikonlarının rengini ayarla
           if (theme === 'light') {
-            await StatusBar.setStyle({ style: Style.Light }); // Siyah ikonlar
+            await StatusBar.setStyle({ style: Style.Light });
           } else {
-            await StatusBar.setStyle({ style: Style.Dark }); // Beyaz ikonlar
+            await StatusBar.setStyle({ style: Style.Dark });
           }
-        } catch (e) {
-          console.error("Durum çubuğu ayarlanamadı", e);
-        }
+        } catch (e) {}
       }
     };
     syncStatusBar();
   }, [theme]);
-  // ----------------------------------------------------
 
   const handleRefreshCode = async (action: 'auto' | 'manual', currentUsername?: string) => {
     const targetUser = currentUsername || username;
@@ -113,13 +99,10 @@ export default function Dashboard() {
         setUserCode(data.newCode);
         localStorage.setItem('userCode', data.newCode);
       }
-    } catch (error) {
-      console.error("Hata:", error);
-    }
+    } catch (error) {}
     if (action === 'manual') setTimeout(() => setIsRefreshing(false), 500);
   };
 
-  // ÇÖZÜM: Cache kırmak için fetch linkine t=Date.now() ve no-store eklendi
   const fetchDashboardData = async (name: string) => {
     const res = await fetch(`/api/chat/list?username=${name}&t=${Date.now()}`, { cache: 'no-store' });
     const data = await res.json();
@@ -166,7 +149,6 @@ export default function Dashboard() {
     await fetch('/api/messages/read', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ chatId, username }) });
   };
 
-  // ÇÖZÜM: Mesajların da cache'e takılmaması için no-store eklendi
   const fetchMessages = async (chatId: string) => {
     const res = await fetch(`/api/messages?chatId=${chatId}&t=${Date.now()}`, { cache: 'no-store' });
     const data = await res.json();
@@ -175,7 +157,7 @@ export default function Dashboard() {
 
   const handleSelectChat = (chat: any) => { setSelectedChat(chat); fetchMessages(chat._id); setIsMobileChatOpen(true); };
 
-  // ÇÖZÜM: Pusher bağlantıları birleştirildi ve temizleme işlemleri (unbind) kusursuz hale getirildi
+  // İŞTE SİHİR BURADA: Şifrelenmiş kanal adını dinliyoruz
   useEffect(() => {
     if (!username) return;
     const p = new Pusher(process.env.NEXT_PUBLIC_PUSHER_KEY!, { 
@@ -184,7 +166,8 @@ export default function Dashboard() {
     });
     setPusherClient(p);
     
-    const userChannel = p.subscribe(`user-${username}`);
+    const safeChannelName = getSafeChannel(username);
+    const userChannel = p.subscribe(safeChannelName);
     
     userChannel.bind('chat-updated', () => {
       fetchDashboardData(username);
@@ -203,7 +186,7 @@ export default function Dashboard() {
 
     return () => {
       userChannel.unbind_all();
-      p.unsubscribe(`user-${username}`);
+      p.unsubscribe(safeChannelName);
       p.disconnect();
     };
   }, [username]);
@@ -398,9 +381,7 @@ export default function Dashboard() {
                     const isMe = msg.sender === username;
                     return (
                       <div key={index} className={`flex ${isMe ? 'justify-end' : 'justify-start'} animate-in fade-in slide-in-from-bottom-2 duration-300`}>
-                        {/* ÇÖZÜM: 'overflow-hidden break-words' eklenerek AAAAAA taşması engellendi */}
                         <div className={`max-w-[85%] md:max-w-[65%] px-4 py-2.5 md:px-6 md:py-3.5 backdrop-blur-2xl ${isMe ? 'rounded-[20px] md:rounded-[24px] rounded-br-[6px] md:rounded-br-[8px]' : 'rounded-[20px] md:rounded-[24px] rounded-bl-[6px] md:rounded-bl-[8px]'} overflow-hidden break-words`} style={{ background: isMe ? `linear-gradient(135deg, rgba(${c.rgb}, 0.35) 0%, rgba(${c.rgb}, 0.2) 100%)` : s.msgBubble, border: `1.5px solid ${isMe ? `rgba(${c.rgb}, 0.4)` : s.border}` }}>
-                          {/* ÇÖZÜM: 'break-words break-all' eklenerek uzun metin zorla alt satıra atıldı */}
                           <p className="whitespace-pre-wrap break-words break-all leading-relaxed text-sm md:text-base" style={{ color: isMe ? c.text : s.text }}>{msg.text}</p>
                           <div className="flex items-center gap-2 mt-2 justify-end">
                             <span className="text-[11px] opacity-80" style={{ color: isMe ? c.text : s.textMuted }}>{new Date(msg.createdAt).toLocaleTimeString('tr-TR', { hour: '2-digit', minute: '2-digit' })}</span>

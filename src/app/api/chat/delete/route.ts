@@ -11,10 +11,13 @@ const pusher = new Pusher({
   useTLS: true,
 });
 
+// PUSHER TÜRKÇE KARAKTER KORUMASI
+const getSafeChannel = (name: string) => 'user-' + Array.from(name).map(c => c.charCodeAt(0).toString(16)).join('-');
+
 export async function DELETE(req: NextRequest) {
   try {
     const chatId = req.nextUrl.searchParams.get('chatId');
-    if (!chatId) return NextResponse.json({ error: 'ID lazım' }, { status: 400 });
+    if (!chatId) return NextResponse.json({ error: 'ID gerekli' }, { status: 400 });
 
     await dbConnect();
     const deletedChat = await Chat.findByIdAndDelete(chatId);
@@ -23,16 +26,16 @@ export async function DELETE(req: NextRequest) {
     try {
       if (deletedChat.participants && Array.isArray(deletedChat.participants)) {
         for (const user of deletedChat.participants) {
-          // ÇÖZÜM: Döngü içinde güvenli sinyal gönderimi
-          await pusher.trigger(`user-${user}`, 'chat-deleted', { chatId: chatId });
+          // ÇÖZÜM: Şifreli kanal isimleriyle silme emri veriliyor
+          await pusher.trigger(getSafeChannel(user), 'chat-deleted', { chatId: chatId });
         }
       }
-    } catch (e) {
-      console.log("Sinyal gitmedi ama silme başarılı.");
+    } catch (pusherErr) {
+      console.error("Sinyal hatası ama silme başarılı");
     }
 
-    return NextResponse.json({ message: 'Silindi' }, { status: 200 });
+    return NextResponse.json({ message: 'Başarılı' }, { status: 200 });
   } catch (error) {
-    return NextResponse.json({ error: 'Hata!' }, { status: 500 });
+    return NextResponse.json({ error: 'Sunucu hatası' }, { status: 500 });
   }
 }
