@@ -14,27 +14,25 @@ const pusher = new Pusher({
 export async function DELETE(req: NextRequest) {
   try {
     const chatId = req.nextUrl.searchParams.get('chatId');
-    if (!chatId) return NextResponse.json({ error: 'ID gerekli' }, { status: 400 });
+    if (!chatId) return NextResponse.json({ error: 'ID lazım' }, { status: 400 });
 
     await dbConnect();
-
     const deletedChat = await Chat.findByIdAndDelete(chatId);
     if (!deletedChat) return NextResponse.json({ error: 'Bulunamadı' }, { status: 404 });
 
     try {
       if (deletedChat.participants && Array.isArray(deletedChat.participants)) {
-        const triggers = deletedChat.participants.map((user: string) => 
-          // ÇÖZÜM: Arayüzün beklediği 'chat-deleted' ismini verdik ve chatId'yi gönderdik!
-          pusher.trigger(`user-${user}`, 'chat-deleted', { chatId: chatId }).catch(e => console.log("Pusher hatası yoksayıldı"))
-        );
-        await Promise.all(triggers);
+        for (const user of deletedChat.participants) {
+          // ÇÖZÜM: Döngü içinde güvenli sinyal gönderimi
+          await pusher.trigger(`user-${user}`, 'chat-deleted', { chatId: chatId });
+        }
       }
-    } catch (pusherErr) {
-      console.error("Sinyal hatası ama silme işlemi başarılı");
+    } catch (e) {
+      console.log("Sinyal gitmedi ama silme başarılı.");
     }
 
-    return NextResponse.json({ message: 'Başarılı' }, { status: 200 });
+    return NextResponse.json({ message: 'Silindi' }, { status: 200 });
   } catch (error) {
-    return NextResponse.json({ error: 'Sunucu hatası' }, { status: 500 });
+    return NextResponse.json({ error: 'Hata!' }, { status: 500 });
   }
 }
