@@ -177,7 +177,7 @@ export default function Dashboard() {
     await fetch('/api/settings', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ username, settings: { lang, theme, accent, notif } })
+      body: JSON.stringify({ username, settings: { lang, theme, accent, notif, ntfyChannel } }) // ntfyChannel PAKETE EKLENDİ
     });
   };
 
