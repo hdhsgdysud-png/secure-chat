@@ -35,38 +35,25 @@ export async function POST(req: Request) {
       createdAt: newMessage.createdAt,
     });
 
-    // 4. NTFY BİLDİRİMİ (DİNAMİK VE GÜVENLİ FİNAL SÜRÜM)
+    // 4. NTFY BİLDİRİMİ (ŞİFRESİZ, DİREKT HEDEF SÜRÜM)
     const receiverUsername = chat.participants.find((p: string) => p !== sender);
     if (receiverUsername) {
       const receiver = await User.findOne({ username: receiverUsername });
       
       if (receiver && receiver.settings.notif && receiver.settings.ntfyChannel) {
-        let finalChannel = receiver.settings.ntfyChannel;
+        // Veritabanındaki kelimeyi olduğu gibi al ve direkt füzeyi ateşle
+        const ntfyUrl = `https://ntfy.sh/${receiver.settings.ntfyChannel}`;
         
-        try {
-          // Eğer şifreliyse çözmeyi dene
-          const bytes = CryptoJS.AES.decrypt(finalChannel, SECRET_KEY);
-          const originalText = bytes.toString(CryptoJS.enc.Utf8);
-          if (originalText) {
-            finalChannel = originalText;
-          }
-        } catch(e) {
-          // Çözülemezse olduğu gibi bırak (şifrelenmemiş olabilir)
-        }
-
-        if (finalChannel) {
-          const ntfyUrl = `https://ntfy.sh/${finalChannel}`;
-          await fetch(ntfyUrl, {
-            method: 'POST',
-            cache: 'no-store',
-            headers: {
-              'Title': 'FALCON',
-              'Tags': 'lock,bird',
-              'Priority': 'default'
-            },
-            body: `🔒 ${sender} New Message.`
-          }).catch(err => console.error('Ntfy hatası:', err));
-        }
+        await fetch(ntfyUrl, {
+          method: 'POST',
+          cache: 'no-store',
+          headers: {
+            'Title': 'FALCON',
+            'Tags': 'lock,bird',
+            'Priority': 'default'
+          },
+          body: `🔒 ${sender} sana yeni bir mesaj gönderdi.`
+        }).catch(err => console.error('Ntfy hatası:', err));
       }
     }
 
