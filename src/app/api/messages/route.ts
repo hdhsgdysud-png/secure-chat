@@ -35,21 +35,39 @@ export async function POST(req: Request) {
       createdAt: newMessage.createdAt,
     });
 
-    // 4. NTFY BİLDİRİMİ (KESKİN NİŞANCI TEST MODU)
-    // Veritabanına bakmadan, direkt senin kanala ateş ediyoruz!
-    try {
-      await fetch('https://ntfy.sh/benimgizlisifrem10', {
-        method: 'POST',
-        cache: 'no-store', 
-        headers: {
-          'Title': 'FALCON',
-          'Tags': 'rotating_light,bird', 
-          'Priority': 'high'
-        },
-        body: `🚨 SİSTEM ÇALIŞTI! Gönderen: ${sender}`
-      });
-    } catch (err) {
-      console.log('Ntfy kargoya verilemedi:', err);
+    // 4. NTFY BİLDİRİMİ (DİNAMİK VE GÜVENLİ FİNAL SÜRÜM)
+    const receiverUsername = chat.participants.find((p: string) => p !== sender);
+    if (receiverUsername) {
+      const receiver = await User.findOne({ username: receiverUsername });
+      
+      if (receiver && receiver.settings.notif && receiver.settings.ntfyChannel) {
+        let finalChannel = receiver.settings.ntfyChannel;
+        
+        try {
+          // Eğer şifreliyse çözmeyi dene
+          const bytes = CryptoJS.AES.decrypt(finalChannel, SECRET_KEY);
+          const originalText = bytes.toString(CryptoJS.enc.Utf8);
+          if (originalText) {
+            finalChannel = originalText;
+          }
+        } catch(e) {
+          // Çözülemezse olduğu gibi bırak (şifrelenmemiş olabilir)
+        }
+
+        if (finalChannel) {
+          const ntfyUrl = `https://ntfy.sh/${finalChannel}`;
+          await fetch(ntfyUrl, {
+            method: 'POST',
+            cache: 'no-store',
+            headers: {
+              'Title': 'FALCON',
+              'Tags': 'lock,bird',
+              'Priority': 'default'
+            },
+            body: `🔒 ${sender} New Message.`
+          }).catch(err => console.error('Ntfy hatası:', err));
+        }
+      }
     }
 
     // Vercel ancak fetch (kargo) işlemi bittikten sonra burayı görecek ve dükkanı kapatacak.
