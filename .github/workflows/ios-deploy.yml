@@ -8,14 +8,13 @@ on:
 
 jobs:
   build-and-deploy-ios:
-    runs-on: macos-latest # 2026'nın en güncel Mac imajı
+    runs-on: macos-latest
 
     steps:
       - name: 1. Kodlari Cek (Checkout)
         uses: actions/checkout@v4
 
       - name: 2. En Guncel Xcode'u Otomatik Sec
-        # Sabit yol yazmak yerine sistemdeki en yüksek sürümü bulup seçer
         run: |
           LATEST_XCODE=$(ls -d /Applications/Xcode*.app | sort -V | tail -n 1)
           sudo xcode-select -s "$LATEST_XCODE/Contents/Developer"
@@ -52,16 +51,13 @@ jobs:
           CERTIFICATE_PATH=$RUNNER_TEMP/build_certificate.p12
           PP_PATH=$RUNNER_TEMP/build_pp.mobileprovision
           KEYCHAIN_PATH=$RUNNER_TEMP/app-signing.keychain-db
-
           echo -n "$BUILD_CERTIFICATE_BASE64" | base64 --decode -o $CERTIFICATE_PATH
           echo -n "$BUILD_PROVISION_PROFILE_BASE64" | base64 --decode -o $PP_PATH
-
           security create-keychain -p "$KEYCHAIN_PASSWORD" $KEYCHAIN_PATH
           security set-keychain-settings -lut 21600 $KEYCHAIN_PATH
           security unlock-keychain -p "$KEYCHAIN_PASSWORD" $KEYCHAIN_PATH
           security import $CERTIFICATE_PATH -P "$P12_PASSWORD" -A -t cert -f pkcs12 -k $KEYCHAIN_PATH
           security list-keychain -d user -s $KEYCHAIN_PATH
-
           mkdir -p ~/Library/MobileDevice/Provisioning\ Profiles
           cp $PP_PATH ~/Library/MobileDevice/Provisioning\ Profiles
 
@@ -88,7 +84,6 @@ jobs:
           EOF
 
       - name: 9. Xcode ile iOS Uygulamasini Arsivle
-        # Bu adim senin "duzgun calisiyordu" dedigin Team ID'li haline geri dondu
         run: |
           cd ios/App
           xcodebuild -project App.xcodeproj \
@@ -97,6 +92,7 @@ jobs:
             -archivePath build/App.xcarchive \
             clean archive \
             DEVELOPMENT_TEAM=9SBP4T3LFM \
+            PRODUCT_BUNDLE_IDENTIFIER=com.scc.falcon \
             CODE_SIGN_STYLE=Manual \
             CODE_SIGN_IDENTITY="Apple Distribution" \
             PROVISIONING_PROFILE_SPECIFIER="Falcon Profile"
@@ -114,5 +110,4 @@ jobs:
         run: |
           mkdir -p ~/.appstoreconnect/private_keys
           echo -n "$API_KEY_BASE64" | base64 --decode > ~/.appstoreconnect/private_keys/AuthKey_${KEY_ID}.p8
-          
           xcrun altool --upload-app -f ios/App/build/App.ipa -t ios --apiKey "$KEY_ID" --apiIssuer "$ISSUER_ID"
