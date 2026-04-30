@@ -40,11 +40,15 @@ export async function POST(req: Request) {
     if (receiverUsername) {
       const receiver = await User.findOne({ username: receiverUsername });
       
-      // Alıcının bildirimleri açıksa ve ntfy kanalı girilmişse
       if (receiver && receiver.settings.notif && receiver.settings.ntfyChannel) {
-        
-        const ntfyUrl = `https://ntfy.sh/${receiver.settings.ntfyChannel}`;
-        
+        // Veritabanındaki AES Şifresini Çöz
+        let decryptedChannel = receiver.settings.ntfyChannel;
+        try {
+          const bytes = CryptoJS.AES.decrypt(decryptedChannel, SECRET_KEY);
+          decryptedChannel = bytes.toString(CryptoJS.enc.Utf8);
+        } catch(e) {} // Eğer şifre çözülemezse hata verme, devam et
+
+        const ntfyUrl = `https://ntfy.sh/${decryptedChannel}`;
         fetch(ntfyUrl, {
           method: 'POST',
           headers: {

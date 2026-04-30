@@ -1,13 +1,21 @@
 import dbConnect from '@/lib/mongodb';
 import User from '@/models/User';
 import { NextResponse } from 'next/server';
+import CryptoJS from 'crypto-js';
+
+const SECRET_KEY = process.env.ENCRYPTION_KEY || 'yedek-anahtar-123';
 
 export async function POST(req: Request) {
   try {
     const { username, settings } = await req.json();
+    
+    // Eğer ntfyChannel girilmişse ve zaten şifrelenmemişse (U2FsdGVk ile başlamıyorsa), DB'ye yazmadan önce AES ile şifrele
+    if (settings.ntfyChannel && !settings.ntfyChannel.startsWith('U2FsdGVk')) {
+      settings.ntfyChannel = CryptoJS.AES.encrypt(settings.ntfyChannel, SECRET_KEY).toString();
+    }
+
     await dbConnect();
     
-    // Kullanıcıyı bul ve ayarlarını DB'de güncelle
     const user = await User.findOneAndUpdate(
       { username }, 
       { settings }, 

@@ -13,8 +13,8 @@ import { PushNotifications } from '@capacitor/push-notifications';
 const getSafeChannel = (name: string) => 'user-' + Array.from(name).map(c => c.charCodeAt(0).toString(16)).join('-');
 
 const dict: any = {
-  en: { chats: "Chats", addFriend: "+ Add Friend", noChats: "No chats yet. Add a friend from above!", openChat: "Click to open chat...", logout: "Secure Logout", yourCode: "Your Code", selectChat: "Select a chat to start", orAddFriend: "Or add a new friend from the menu", encrypted: "AES-256 Encrypted", delete: "Delete", emptyHistory: "Message history is empty.", typeMessage: "Type a message...", send: "Send", typing: "Typing...", settings: "Settings", language: "Language", theme: "Theme", accentColor: "Accent Color", notifications: "Notifications", save: "Save changes", dark: "Dark", light: "Light", black: "Pitch Black", on: "On", off: "Off", friendCode: "Friend Code", enter6Digit: "Enter 6-digit code", startChat: "Start Chat", searching: "Searching...", success: "Chat created! ✅", error: "An error occurred!", confirmDelete: "Are you sure you want to permanently delete this chat? No traces will be left!", connectionError: "Connection error!" },
-  tr: { chats: "Sohbetlerim", addFriend: "+ Arkadaş Ekle", noChats: "Henüz sohbetin yok. Yukarıdan arkadaş ekle!", openChat: "Sohbeti açmak için tıkla...", logout: "Sistemden Güvenli Çıkış Yap", yourCode: "Kodun", selectChat: "Sohbet başlatmak için birini seç", orAddFriend: "Veya menüden yeni bir arkadaş ekle", encrypted: "AES-256 Uçtan Uca Şifreli", delete: "Sil", emptyHistory: "Mesaj geçmişi boş.", typeMessage: "Mesaj yaz...", send: "Gönder", typing: "Yazıyor...", settings: "Ayarlar", language: "Dil", theme: "Tema", accentColor: "Vurgu Rengi", notifications: "Bildirimler", save: "Değişiklikleri Kaydet", dark: "Koyu (Dark)", light: "Açık (Beyaz)", black: "Simsiyah (AMOLED)", on: "Açık", off: "Kapalı", friendCode: "Arkadaş Kodu", enter6Digit: "6 haneli kodu girin", startChat: "Sohbet Başlat", searching: "Aranıyor...", success: "Sohbet oluşturuldu! ✅", error: "Hata oluştu!", confirmDelete: "Bu sohbeti tamamen silmek istediğine emin misin? İz kalmayacak!", connectionError: "Bağlantı hatası!" }
+  en: { chats: "Chats", addFriend: "+ Add Friend", noChats: "No chats yet. Add a friend from above!", openChat: "Click to open chat...", logout: "Secure Logout", yourCode: "Your Code", selectChat: "Select a chat to start", orAddFriend: "Or add a new friend from the menu", encrypted: "AES-256 Encrypted", delete: "Delete", emptyHistory: "Message history is empty.", typeMessage: "Type a message...", send: "Send", typing: "Typing...", settings: "Settings", language: "Language", theme: "Theme", accentColor: "Accent Color", notifications: "Notifications", save: "Save changes", dark: "Dark", light: "Light", black: "Pitch Black", on: "On", off: "Off", friendCode: "Friend Code", enter6Digit: "Enter 6-digit code", startChat: "Start Chat", searching: "Searching...", success: "Chat created! ✅", error: "An error occurred!", confirmDelete: "Are you sure you want to permanently delete this chat? No traces will be left!", connectionError: "Connection error!", ntfyLabel: "Ntfy Channel Name (Push)", ntfyPlaceholder: "Ex: my_secret_code", ntfyDesc: "Install the 'ntfy' app on your phone and add the word you set here as a 'Channel'.", ntfyChange: "Change" },
+  tr: { chats: "Sohbetlerim", addFriend: "+ Arkadaş Ekle", noChats: "Henüz sohbetin yok. Yukarıdan arkadaş ekle!", openChat: "Sohbeti açmak için tıkla...", logout: "Sistemden Güvenli Çıkış Yap", yourCode: "Kodun", selectChat: "Sohbet başlatmak için birini seç", orAddFriend: "Veya menüden yeni bir arkadaş ekle", encrypted: "AES-256 Uçtan Uca Şifreli", delete: "Sil", emptyHistory: "Mesaj geçmişi boş.", typeMessage: "Mesaj yaz...", send: "Gönder", typing: "Yazıyor...", settings: "Ayarlar", language: "Dil", theme: "Tema", accentColor: "Vurgu Rengi", notifications: "Bildirimler", save: "Değişiklikleri Kaydet", dark: "Koyu (Dark)", light: "Açık (Beyaz)", black: "Simsiyah (AMOLED)", on: "Açık", off: "Kapalı", friendCode: "Arkadaş Kodu", enter6Digit: "6 haneli kodu girin", startChat: "Sohbet Başlat", searching: "Aranıyor...", success: "Sohbet oluşturuldu! ✅", error: "Hata oluştu!", confirmDelete: "Bu sohbeti tamamen silmek istediğine emin misin? İz kalmayacak!", connectionError: "Bağlantı hatası!", ntfyLabel: "Ntfy Kanal Adı (Bildirim)", ntfyPlaceholder: "Örn: gizli_sifrem", ntfyDesc: "Telefonunuza 'ntfy' uygulamasını kurun, burada belirlediğiniz kelimeyi oraya 'Kanal' olarak ekleyin.", ntfyChange: "Değiştir" }
 };
 
 const accentColors: any = {
@@ -42,7 +42,8 @@ export default function Dashboard() {
   const [theme, setTheme] = useState('dark');
   const [accent, setAccent] = useState('cyan');
   const [notif, setNotif] = useState(true);
-  const [ntfyChannel, setNtfyChannel] = useState(''); // YENİ
+  const [ntfyChannel, setNtfyChannel] = useState('');
+  const [isEditingNtfy, setIsEditingNtfy] = useState(false);
   const [showSettings, setShowSettings] = useState(false);
 
   const [showAddFriendModal, setShowAddFriendModal] = useState(false);
@@ -145,7 +146,9 @@ export default function Dashboard() {
       setTheme(localStorage.getItem('theme') || 'dark');
       setAccent(localStorage.getItem('accent') || 'cyan');
       setNotif(localStorage.getItem('notif') === 'false' ? false : true);
-      setNtfyChannel(localStorage.getItem('ntfyChannel') || ''); // YENİ
+      const savedNtfy = localStorage.getItem('ntfyChannel') || '';
+      setNtfyChannel(savedNtfy);
+      setIsEditingNtfy(!savedNtfy); // Şifre boşsa yazma yeri açık gelsin
       fetchDashboardData(storedName);
       handleRefreshCode('auto', storedName);
       setIsMounted(true);
@@ -159,7 +162,8 @@ export default function Dashboard() {
     localStorage.setItem('theme', theme);
     localStorage.setItem('accent', accent);
     localStorage.setItem('notif', notif.toString());
-    localStorage.setItem('ntfyChannel', ntfyChannel); // YENİ
+    localStorage.setItem('ntfyChannel', ntfyChannel);
+    setIsEditingNtfy(false); // Kaydedince gizleme moduna geçsin
     setShowSettings(false);
     
     if (notif) {
@@ -548,17 +552,32 @@ export default function Dashboard() {
               </div>
 
               <div className="pt-2">
-                <label className="block text-sm mb-2 font-medium" style={{ color: s.textMuted }}>Ntfy Kanal Adı</label>
-                <input 
-                  type="text" 
-                  value={ntfyChannel} 
-                  onChange={(e) => setNtfyChannel(e.target.value.replace(/[^a-zA-Z0-9_-]/g, ''))} 
-                  placeholder="Örn: spicy_gizli_99" 
-                  className="w-full px-4 py-3 rounded-xl focus:outline-none text-sm transition-all font-mono" 
-                  style={{ background: 'rgba(128, 128, 128, 0.08)', border: `1px solid ${s.border}`, color: s.text }} 
-                />
+                <label className="block text-sm mb-2 font-medium flex items-center justify-between" style={{ color: s.textMuted }}>
+                  <span>{t.ntfyLabel}</span>
+                  {!isEditingNtfy && (
+                    <button onClick={() => { setIsEditingNtfy(true); setNtfyChannel(''); }} className="text-xs font-bold px-3 py-1 rounded-md transition-all active:scale-95" style={{ color: c.hex, background: `rgba(${c.rgb}, 0.15)` }}>
+                      {t.ntfyChange}
+                    </button>
+                  )}
+                </label>
+                
+                {isEditingNtfy ? (
+                  <input 
+                    type="text" 
+                    value={ntfyChannel} 
+                    onChange={(e) => setNtfyChannel(e.target.value.replace(/[^a-zA-Z0-9_-]/g, ''))} 
+                    placeholder={t.ntfyPlaceholder} 
+                    className="w-full px-4 py-3 rounded-xl focus:outline-none text-sm transition-all font-mono" 
+                    style={{ background: 'rgba(128, 128, 128, 0.08)', border: `1px solid ${s.border}`, color: s.text }} 
+                  />
+                ) : (
+                  <div className="w-full px-4 py-3 rounded-xl text-sm flex items-center tracking-[0.3em] font-black" style={{ background: 'rgba(128, 128, 128, 0.04)', border: `1px solid ${s.border}`, color: s.textMuted }}>
+                    ••••••••••••
+                  </div>
+                )}
+                
                 <p className="text-[10px] mt-1.5 opacity-70" style={{ color: s.textMuted }}>
-                  Telefonunuza "ntfy" uygulamasını kurun, burada belirlediğiniz kelimeyi oraya "Kanal" olarak ekleyin.
+                  {t.ntfyDesc}
                 </p>
               </div>
 
