@@ -7,7 +7,6 @@ import Pusher from 'pusher';
 
 const SECRET_KEY = process.env.ENCRYPTION_KEY || 'yedek-anahtar-123';
 
-// Pusher Ayarları (Senin .env dosyasındaki şifrelerle köprü kurar)
 const pusher = new Pusher({
   appId: process.env.PUSHER_APP_ID!,
   key: process.env.NEXT_PUBLIC_PUSHER_KEY!,
@@ -16,37 +15,46 @@ const pusher = new Pusher({
   useTLS: true,
 });
 
-// MESAJ GÖNDERME
 export async function POST(req: Request) {
   try {
     const { chatId, sender, text } = await req.json();
     await dbConnect();
 
-    // 1. Mesajı veritabanı için AES ile çorbaya çevir
     const encryptedText = CryptoJS.AES.encrypt(text, SECRET_KEY).toString();
 
     const chat = await Chat.findById(chatId);
     if (!chat) return NextResponse.json({ error: 'Sohbet bulunamadı!' }, { status: 404 });
 
-    // 2. Şifreli mesajı MongoDB'ye kaydet
     const newMessage = { sender, text: encryptedText, createdAt: new Date(), isRead: false };
     chat.messages.push(newMessage);
     await chat.save();
 
-    // 3. PUSHER TETİKLEMESİ (Anında Karşıya İlet)
     await pusher.trigger(chatId, 'new-message', {
       sender,
       text: text, 
       createdAt: newMessage.createdAt,
     });
 
-    // 4. PUSH NOTIFICATION (Arka plan bildirimi için altyapı)
+    // 4. NTFY BİLDİRİMİ (Sıfır Maliyet, Sıfır Şifre, Tam Hayalet Modu)
     const receiverUsername = chat.participants.find((p: string) => p !== sender);
     if (receiverUsername) {
       const receiver = await User.findOne({ username: receiverUsername });
-      if (receiver && receiver.settings.notif && receiver.deviceTokens.length > 0) {
-        console.log(`${receiverUsername} adlı kullanıcının cihaz tokenları:`, receiver.deviceTokens);
-        // Firebase veya APNs bildirim kodu buraya eklenecek
+      
+      // Alıcının bildirimleri açıksa ve ntfy kanalı girilmişse
+      if (receiver && receiver.settings.notif && receiver.settings.ntfyChannel) {
+        
+        const ntfyUrl = `https://ntfy.sh/${receiver.settings.ntfyChannel}`;
+        
+        fetch(ntfyUrl, {
+          method: 'POST',
+          headers: {
+            'Title': 'FALCON',
+            'Tags': 'lock,bird', // ntfy ikonları (kilit ve kuş)
+            'Priority': 'default'
+          },
+          body: `🔒 ${sender} sana yeni bir mesaj gönderdi.`
+        }).catch(err => console.error('Ntfy hatası:', err));
+        
       }
     }
 
@@ -56,7 +64,6 @@ export async function POST(req: Request) {
   }
 }
 
-// MESAJLARI ÇEKME (GET METODU AYNI KALIYOR)
 export async function GET(req: Request) {
   try {
     const { searchParams } = new URL(req.url);

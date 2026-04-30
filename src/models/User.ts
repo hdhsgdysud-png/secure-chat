@@ -6,15 +6,13 @@ const userSchema = new mongoose.Schema(
     password: { type: String, required: true },
     userCode: { type: String, required: true, unique: true },
     codeUpdatedAt: { type: Date, default: Date.now },
-    // YENİ EKLENEN AYARLAR KISMI
     settings: {
       lang: { type: String, default: 'en' },
       theme: { type: String, default: 'dark' },
       accent: { type: String, default: 'cyan' },
-      notif: { type: Boolean, default: true }
-    },
-    // PUSH NOTIFICATION TOKEN'LARI (YENİ EKLENDİ)
-    deviceTokens: [{ type: String }]
+      notif: { type: Boolean, default: true },
+      ntfyChannel: { type: String, default: '' } // YENİ: SIFIR MALİYETLİ NTFY KANALI
+    }
   },
   { timestamps: true }
 );

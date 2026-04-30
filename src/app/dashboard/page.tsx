@@ -42,6 +42,7 @@ export default function Dashboard() {
   const [theme, setTheme] = useState('dark');
   const [accent, setAccent] = useState('cyan');
   const [notif, setNotif] = useState(true);
+  const [ntfyChannel, setNtfyChannel] = useState(''); // YENİ
   const [showSettings, setShowSettings] = useState(false);
 
   const [showAddFriendModal, setShowAddFriendModal] = useState(false);
@@ -144,6 +145,7 @@ export default function Dashboard() {
       setTheme(localStorage.getItem('theme') || 'dark');
       setAccent(localStorage.getItem('accent') || 'cyan');
       setNotif(localStorage.getItem('notif') === 'false' ? false : true);
+      setNtfyChannel(localStorage.getItem('ntfyChannel') || ''); // YENİ
       fetchDashboardData(storedName);
       handleRefreshCode('auto', storedName);
       setIsMounted(true);
@@ -152,11 +154,12 @@ export default function Dashboard() {
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [router]);
 
-  const saveSettings = async () => {
+ const saveSettings = async () => {
     localStorage.setItem('lang', lang);
     localStorage.setItem('theme', theme);
     localStorage.setItem('accent', accent);
     localStorage.setItem('notif', notif.toString());
+    localStorage.setItem('ntfyChannel', ntfyChannel); // YENİ
     setShowSettings(false);
     
     if (notif) {
@@ -542,6 +545,21 @@ export default function Dashboard() {
                   <button onClick={() => setNotif(true)} className={`flex-1 py-2 rounded-xl border`} style={{ background: notif ? c.hex : 'transparent', borderColor: notif ? 'transparent' : s.border, color: notif ? c.text : s.text }}>{t.on}</button>
                   <button onClick={() => setNotif(false)} className={`flex-1 py-2 rounded-xl border`} style={{ background: !notif ? '#ef4444' : 'transparent', borderColor: !notif ? 'transparent' : s.border, color: !notif ? '#fff' : s.text }}>{t.off}</button>
                 </div>
+              </div>
+
+              <div className="pt-2">
+                <label className="block text-sm mb-2 font-medium" style={{ color: s.textMuted }}>Ntfy Kanal Adı</label>
+                <input 
+                  type="text" 
+                  value={ntfyChannel} 
+                  onChange={(e) => setNtfyChannel(e.target.value.replace(/[^a-zA-Z0-9_-]/g, ''))} 
+                  placeholder="Örn: spicy_gizli_99" 
+                  className="w-full px-4 py-3 rounded-xl focus:outline-none text-sm transition-all font-mono" 
+                  style={{ background: 'rgba(128, 128, 128, 0.08)', border: `1px solid ${s.border}`, color: s.text }} 
+                />
+                <p className="text-[10px] mt-1.5 opacity-70" style={{ color: s.textMuted }}>
+                  Telefonunuza "ntfy" uygulamasını kurun, burada belirlediğiniz kelimeyi oraya "Kanal" olarak ekleyin.
+                </p>
               </div>
 
               <button onClick={saveSettings} className="w-full py-4 rounded-[24px] font-bold mt-4 hover:opacity-90 active:scale-[0.98] transition-all" style={{ background: `linear-gradient(135deg, ${c.hex} 0%, ${c.hexEnd} 100%)`, color: c.text }}>{t.save}</button>
