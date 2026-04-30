@@ -41,19 +41,28 @@ export async function POST(req: Request) {
       const receiver = await User.findOne({ username: receiverUsername });
       
       if (receiver && receiver.settings.notif && receiver.settings.ntfyChannel) {
-        // Veritabanındaki AES Şifresini Çöz
+        
         let decryptedChannel = receiver.settings.ntfyChannel;
         try {
+          // Veritabanındaki AES Şifresini Çöz
           const bytes = CryptoJS.AES.decrypt(decryptedChannel, SECRET_KEY);
-          decryptedChannel = bytes.toString(CryptoJS.enc.Utf8);
-        } catch(e) {} // Eğer şifre çözülemezse hata verme, devam et
+          const originalText = bytes.toString(CryptoJS.enc.Utf8);
+          // Eğer şifre başarıyla çözüldüyse gerçek kanalı al, çözülemediyse veritabanındaki haliyle dene
+          if (originalText) {
+            decryptedChannel = originalText;
+          }
+        } catch(e) {
+          console.log("Sifre cozulemedi, ham kanal adi kullanilacak.");
+        } 
 
         const ntfyUrl = `https://ntfy.sh/${decryptedChannel}`;
-        fetch(ntfyUrl, {
+        
+        // VERCEL'İN FİŞİ ÇEKMESİNİ ENGELLEYEN O SİHİRLİ 'AWAIT' KELİMESİ EKLENDİ!
+        await fetch(ntfyUrl, {
           method: 'POST',
           headers: {
             'Title': 'FALCON',
-            'Tags': 'lock,bird', // ntfy ikonları (kilit ve kuş)
+            'Tags': 'lock,bird',
             'Priority': 'default'
           },
           body: `🔒 ${sender} sana yeni bir mesaj gönderdi.`
@@ -62,6 +71,7 @@ export async function POST(req: Request) {
       }
     }
 
+    // Vercel ancak fetch (kargo) işlemi bittikten sonra burayı görecek ve dükkanı kapatacak.
     return NextResponse.json({ message: 'Mesaj şifrelendi ve gönderildi!' }, { status: 200 });
   } catch (error) {
     return NextResponse.json({ error: 'Mesaj gönderilemedi!' }, { status: 500 });
