@@ -4,19 +4,22 @@ on:
   push:
     branches:
       - main
-  workflow_dispatch: # İstediğin zaman manuel tetiklemeni sağlar
+  workflow_dispatch: 
 
 jobs:
   build-and-deploy-ios:
-    runs-on: macos-latest # 2026'nın en güncel Mac sunucusunu kullanır
+    runs-on: macos-latest # 2026'nın en güncel Mac imajı
 
     steps:
       - name: 1. Kodlari Cek (Checkout)
         uses: actions/checkout@v4
 
-      - name: 2. Xcode 26 Secimi (iOS 26 SDK)
-        # Apple'ın 2026'da zorunlu kıldığı SDK sürümü için Xcode 26'yı aktif eder
-        run: sudo xcode-select -s /Applications/Xcode_26.app/Contents/Developer
+      - name: 2. En Guncel Xcode'u Otomatik Sec
+        # Sabit yol yazmak yerine sistemdeki en yüksek sürümü bulup seçer
+        run: |
+          LATEST_XCODE=$(ls -d /Applications/Xcode*.app | sort -V | tail -n 1)
+          sudo xcode-select -s "$LATEST_XCODE/Contents/Developer"
+          echo "Secilen Xcode: $LATEST_XCODE"
 
       - name: 3. Node.js Kurulumu
         uses: actions/setup-node@v4
@@ -50,20 +53,15 @@ jobs:
           PP_PATH=$RUNNER_TEMP/build_pp.mobileprovision
           KEYCHAIN_PATH=$RUNNER_TEMP/app-signing.keychain-db
 
-          # Base64 sifreleri tekrar dosyaya cevir
           echo -n "$BUILD_CERTIFICATE_BASE64" | base64 --decode -o $CERTIFICATE_PATH
           echo -n "$BUILD_PROVISION_PROFILE_BASE64" | base64 --decode -o $PP_PATH
 
-          # Sanal Mac uzerinde gecici bir anahtarlik (keychain) olustur
           security create-keychain -p "$KEYCHAIN_PASSWORD" $KEYCHAIN_PATH
           security set-keychain-settings -lut 21600 $KEYCHAIN_PATH
           security unlock-keychain -p "$KEYCHAIN_PASSWORD" $KEYCHAIN_PATH
-
-          # P12 Sertifikasini bu anahtarliga yukle
           security import $CERTIFICATE_PATH -P "$P12_PASSWORD" -A -t cert -f pkcs12 -k $KEYCHAIN_PATH
           security list-keychain -d user -s $KEYCHAIN_PATH
 
-          # Provisioning Profile (Ucus Izni) dosyasini Apple'in bekledigi klasore kopyala
           mkdir -p ~/Library/MobileDevice/Provisioning\ Profiles
           cp $PP_PATH ~/Library/MobileDevice/Provisioning\ Profiles
 
@@ -90,7 +88,7 @@ jobs:
           EOF
 
       - name: 9. Xcode ile iOS Uygulamasini Arsivle
-        # PRODUCT_BUNDLE_IDENTIFIER zorlaması ile com.spicy vs com.scc hatasını çözer
+        # Bu adim senin "duzgun calisiyordu" dedigin Team ID'li haline geri dondu
         run: |
           cd ios/App
           xcodebuild -project App.xcodeproj \
@@ -99,7 +97,6 @@ jobs:
             -archivePath build/App.xcarchive \
             clean archive \
             DEVELOPMENT_TEAM=9SBP4T3LFM \
-            PRODUCT_BUNDLE_IDENTIFIER=com.scc.falcon \
             CODE_SIGN_STYLE=Manual \
             CODE_SIGN_IDENTITY="Apple Distribution" \
             PROVISIONING_PROFILE_SPECIFIER="Falcon Profile"
@@ -115,9 +112,7 @@ jobs:
           KEY_ID: ${{ secrets.APPSTORE_API_KEY_ID }}
           ISSUER_ID: ${{ secrets.APPSTORE_ISSUER_ID }}
         run: |
-          # P8 anahtarini Apple'in istedigi gizli klasore kaydet
           mkdir -p ~/.appstoreconnect/private_keys
           echo -n "$API_KEY_BASE64" | base64 --decode > ~/.appstoreconnect/private_keys/AuthKey_${KEY_ID}.p8
           
-          # IPA dosyasini Apple'a gonder
           xcrun altool --upload-app -f ios/App/build/App.ipa -t ios --apiKey "$KEY_ID" --apiIssuer "$ISSUER_ID"
