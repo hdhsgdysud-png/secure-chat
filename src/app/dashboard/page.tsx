@@ -6,6 +6,7 @@ import { Shield, Trash2, Check, Send, X, ArrowLeft, MessageSquare, Settings, Ref
 import { Keyboard } from '@capacitor/keyboard';
 import { StatusBar, Style } from '@capacitor/status-bar';
 import { Capacitor } from '@capacitor/core';
+import { LocalNotifications } from '@capacitor/local-notifications';
 
 // YENİ VE EN KRİTİK EKLENTİ: TÜRKÇE KARAKTERLERİ ŞİFRELEYEN KOD (BUNSUZ F5 İSTER)
 const getSafeChannel = (name: string) => 'user-' + Array.from(name).map(c => c.charCodeAt(0).toString(16)).join('-');
@@ -134,8 +135,12 @@ export default function Dashboard() {
     localStorage.setItem('notif', notif.toString());
     setShowSettings(false);
     
-    if (notif && Notification.permission !== 'granted') {
-      Notification.requestPermission();
+    if (notif) {
+      if (Capacitor.isNativePlatform()) {
+        await LocalNotifications.requestPermissions();
+      } else if (Notification.permission !== 'granted') {
+        Notification.requestPermission();
+      }
     }
 
     await fetch('/api/settings', {
@@ -200,8 +205,19 @@ export default function Dashboard() {
         setMessages((prev) => [...prev, { ...data, isRead: true }]);
         scrollToBottom();
         markMessagesAsRead(selectedChat._id);
-        if (notif && Notification.permission === 'granted') {
-          new Notification('Yeni Mesaj', { body: data.text });
+        if (notif) {
+          if (Capacitor.isNativePlatform()) {
+            LocalNotifications.schedule({
+              notifications: [{
+                title: data.sender,
+                body: data.text,
+                id: new Date().getTime(),
+                sound: 'beep.wav',
+              }]
+            });
+          } else if (Notification.permission === 'granted') {
+            new Notification(data.sender, { body: data.text });
+          }
         }
       }
     });
@@ -409,8 +425,8 @@ export default function Dashboard() {
                 <div ref={messagesEndRef} />
               </div>
 
-              <div className="p-4 md:p-5 backdrop-blur-2xl border-t" style={{ background: 'rgba(128, 128, 128, 0.03)', borderColor: s.border }}>
-                <form onSubmit={sendMessage} className="flex gap-3 items-end">
+              <div className="p-2 md:p-4 backdrop-blur-2xl border-t" style={{ background: 'rgba(128, 128, 128, 0.03)', borderColor: s.border }}>
+                <form onSubmit={sendMessage} className="flex gap-2 items-end px-1">
                   <div className="flex-1 relative">
                     <textarea 
                       ref={textareaRef} 
@@ -418,13 +434,13 @@ export default function Dashboard() {
                       onChange={handleTyping} 
                       placeholder={t.typeMessage} 
                       rows={1}
-                      className="w-full px-6 py-4 rounded-[26px] backdrop-blur-2xl focus:outline-none resize-none scrollbar-hide" 
+                      className="w-full px-4 py-2.5 md:px-5 md:py-3 rounded-[20px] backdrop-blur-2xl focus:outline-none resize-none scrollbar-hide text-[15px] md:text-base leading-relaxed" 
                       style={{ 
                         background: 'rgba(128, 128, 128, 0.08)', 
-                        border: `1.5px solid ${s.border}`, 
+                        border: `1px solid ${s.border}`, 
                         color: s.text,
-                        minHeight: '56px',
-                        maxHeight: '120px'
+                        minHeight: '44px',
+                        maxHeight: '100px'
                       }} 
                       onInput={(e: any) => {
                         e.target.style.height = 'auto';
@@ -432,8 +448,8 @@ export default function Dashboard() {
                       }}
                     />
                   </div>
-                  <button type="submit" disabled={!newMessage.trim()} className="w-14 h-14 rounded-full backdrop-blur-2xl transition-all duration-300 hover:scale-105 active:scale-95 flex items-center justify-center flex-shrink-0 disabled:opacity-40" style={{ background: newMessage.trim() ? `linear-gradient(135deg, ${c.hex} 0%, ${c.hexEnd} 100%)` : 'rgba(128, 128, 128, 0.08)', border: `1.5px solid rgba(${c.rgb}, 0.4)` }}>
-                    <Send className="w-5 h-5" style={{ color: newMessage.trim() ? c.text : s.textMuted }} />
+                  <button type="submit" disabled={!newMessage.trim()} className="w-11 h-11 mb-[2px] rounded-full backdrop-blur-2xl transition-all duration-300 hover:scale-105 active:scale-95 flex items-center justify-center flex-shrink-0 disabled:opacity-40" style={{ background: newMessage.trim() ? `linear-gradient(135deg, ${c.hex} 0%, ${c.hexEnd} 100%)` : 'rgba(128, 128, 128, 0.08)', border: `1px solid rgba(${c.rgb}, 0.4)` }}>
+                    <Send className="w-4 h-4 md:w-5 md:h-5 ml-[2px]" style={{ color: newMessage.trim() ? c.text : s.textMuted }} />
                   </button>
                 </form>
               </div>
