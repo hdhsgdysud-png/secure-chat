@@ -281,6 +281,7 @@ export default function Dashboard() {
     
     if (textareaRef.current) {
       textareaRef.current.style.height = 'auto';
+      textareaRef.current.focus(); // İŞTE SİHİRLİ DOKUNUŞ: KLAVYEYİ EKRANDA TUTAR
     }
     
     scrollToBottom();
