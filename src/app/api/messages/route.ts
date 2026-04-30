@@ -35,40 +35,21 @@ export async function POST(req: Request) {
       createdAt: newMessage.createdAt,
     });
 
-    // 4. NTFY BİLDİRİMİ (Sıfır Maliyet, Sıfır Şifre, Tam Hayalet Modu)
-    const receiverUsername = chat.participants.find((p: string) => p !== sender);
-    if (receiverUsername) {
-      const receiver = await User.findOne({ username: receiverUsername });
-      
-      if (receiver && receiver.settings.notif && receiver.settings.ntfyChannel) {
-        
-        let decryptedChannel = receiver.settings.ntfyChannel;
-        try {
-          // Veritabanındaki AES Şifresini Çöz
-          const bytes = CryptoJS.AES.decrypt(decryptedChannel, SECRET_KEY);
-          const originalText = bytes.toString(CryptoJS.enc.Utf8);
-          // Eğer şifre başarıyla çözüldüyse gerçek kanalı al, çözülemediyse veritabanındaki haliyle dene
-          if (originalText) {
-            decryptedChannel = originalText;
-          }
-        } catch(e) {
-          console.log("Sifre cozulemedi, ham kanal adi kullanilacak.");
-        } 
-
-        const ntfyUrl = `https://ntfy.sh/${decryptedChannel}`;
-        
-        // VERCEL'İN FİŞİ ÇEKMESİNİ ENGELLEYEN O SİHİRLİ 'AWAIT' KELİMESİ EKLENDİ!
-        await fetch(ntfyUrl, {
-          method: 'POST',
-          headers: {
-            'Title': 'FALCON',
-            'Tags': 'lock,bird',
-            'Priority': 'default'
-          },
-          body: `🔒 ${sender} sana yeni bir mesaj gönderdi.`
-        }).catch(err => console.error('Ntfy hatası:', err));
-        
-      }
+    // 4. NTFY BİLDİRİMİ (KESKİN NİŞANCI TEST MODU)
+    // Veritabanına bakmadan, direkt senin kanala ateş ediyoruz!
+    try {
+      await fetch('https://ntfy.sh/benimgizlisifrem10', {
+        method: 'POST',
+        cache: 'no-store', 
+        headers: {
+          'Title': 'FALCON',
+          'Tags': 'rotating_light,bird', 
+          'Priority': 'high'
+        },
+        body: `🚨 SİSTEM ÇALIŞTI! Gönderen: ${sender}`
+      });
+    } catch (err) {
+      console.log('Ntfy kargoya verilemedi:', err);
     }
 
     // Vercel ancak fetch (kargo) işlemi bittikten sonra burayı görecek ve dükkanı kapatacak.
