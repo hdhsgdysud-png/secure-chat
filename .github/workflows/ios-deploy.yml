@@ -23,6 +23,13 @@ jobs:
         run: npm install
 
       - name: 4. Next.js Web Uygulamasini Derle
+        env:
+          MONGODB_URI: ${{ secrets.MONGODB_URI }}
+          ENCRYPTION_KEY: ${{ secrets.ENCRYPTION_KEY }}
+          PUSHER_APP_ID: ${{ secrets.PUSHER_APP_ID }}
+          NEXT_PUBLIC_PUSHER_KEY: ${{ secrets.NEXT_PUBLIC_PUSHER_KEY }}
+          PUSHER_SECRET: ${{ secrets.PUSHER_SECRET }}
+          NEXT_PUBLIC_PUSHER_CLUSTER: ${{ secrets.NEXT_PUBLIC_PUSHER_CLUSTER }}
         run: npm run build
 
       - name: 5. Capacitor ile iOS Klasorunu Guncelle
