@@ -1,5 +1,6 @@
 import dbConnect from '@/lib/mongodb';
 import Chat from '@/models/Chat';
+import User from '@/models/User';
 import { NextResponse } from 'next/server';
 import CryptoJS from 'crypto-js';
 import Pusher from 'pusher';
@@ -33,12 +34,21 @@ export async function POST(req: Request) {
     await chat.save();
 
     // 3. PUSHER TETİKLEMESİ (Anında Karşıya İlet)
-    // Pusher kanalına şifresiz halini yolluyoruz ki ön yüz hemen ekrana basabilsin
     await pusher.trigger(chatId, 'new-message', {
       sender,
       text: text, 
       createdAt: newMessage.createdAt,
     });
+
+    // 4. PUSH NOTIFICATION (Arka plan bildirimi için altyapı)
+    const receiverUsername = chat.participants.find((p: string) => p !== sender);
+    if (receiverUsername) {
+      const receiver = await User.findOne({ username: receiverUsername });
+      if (receiver && receiver.settings.notif && receiver.deviceTokens.length > 0) {
+        console.log(`${receiverUsername} adlı kullanıcının cihaz tokenları:`, receiver.deviceTokens);
+        // Firebase veya APNs bildirim kodu buraya eklenecek
+      }
+    }
 
     return NextResponse.json({ message: 'Mesaj şifrelendi ve gönderildi!' }, { status: 200 });
   } catch (error) {

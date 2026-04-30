@@ -7,6 +7,7 @@ import { Keyboard } from '@capacitor/keyboard';
 import { StatusBar, Style } from '@capacitor/status-bar';
 import { Capacitor } from '@capacitor/core';
 import { LocalNotifications } from '@capacitor/local-notifications';
+import { PushNotifications } from '@capacitor/push-notifications';
 
 // YENİ VE EN KRİTİK EKLENTİ: TÜRKÇE KARAKTERLERİ ŞİFRELEYEN KOD (BUNSUZ F5 İSTER)
 const getSafeChannel = (name: string) => 'user-' + Array.from(name).map(c => c.charCodeAt(0).toString(16)).join('-');
@@ -111,6 +112,28 @@ export default function Dashboard() {
   };
 
   useEffect(() => {
+    const registerPush = async (userName: string) => {
+      if (!Capacitor.isNativePlatform()) return;
+      
+      let permStatus = await PushNotifications.checkPermissions();
+      if (permStatus.receive === 'prompt') {
+        permStatus = await PushNotifications.requestPermissions();
+      }
+      if (permStatus.receive !== 'granted') return;
+      
+      await PushNotifications.register();
+      
+      PushNotifications.addListener('registration', async (token) => {
+        try {
+          await fetch('/api/user/token', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ username: userName, token: token.value })
+          });
+        } catch (error) { console.error(error); }
+      });
+    };
+
     const storedName = localStorage.getItem('username');
     if (!storedName) {
       router.push('/');
@@ -124,6 +147,7 @@ export default function Dashboard() {
       fetchDashboardData(storedName);
       handleRefreshCode('auto', storedName);
       setIsMounted(true);
+      registerPush(storedName); // Push bildirimlerini başlat
     }
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [router]);

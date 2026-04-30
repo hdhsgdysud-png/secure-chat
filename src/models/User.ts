@@ -12,7 +12,9 @@ const userSchema = new mongoose.Schema(
       theme: { type: String, default: 'dark' },
       accent: { type: String, default: 'cyan' },
       notif: { type: Boolean, default: true }
-    }
+    },
+    // PUSH NOTIFICATION TOKEN'LARI (YENİ EKLENDİ)
+    deviceTokens: [{ type: String }]
   },
   { timestamps: true }
 );
