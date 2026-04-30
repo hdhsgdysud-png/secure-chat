@@ -1,0 +1,100 @@
+name: Deploy FALCON to App Store Connect
+
+on:
+  push:
+    branches:
+      - main
+  workflow_dispatch: # İstediğin zaman manuel tetiklemeni sağlar
+
+jobs:
+  build-and-deploy-ios:
+    runs-on: macos-latest
+
+    steps:
+      - name: 1. Kodlari Cek (Checkout)
+        uses: actions/checkout@v4
+
+      - name: 2. Node.js Kurulumu
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+
+      - name: 3. NPM Paketlerini Yukle
+        run: npm install
+
+      - name: 4. Next.js Web Uygulamasini Derle
+        run: npm run build
+
+      - name: 5. Capacitor ile iOS Klasorunu Guncelle
+        run: npx cap sync ios
+
+      - name: 6. Apple Sertifikalarini Kasadan Cikarip Kur
+        env:
+          BUILD_CERTIFICATE_BASE64: ${{ secrets.P12_BASE64 }}
+          P12_PASSWORD: ${{ secrets.P12_PASSWORD }}
+          BUILD_PROVISION_PROFILE_BASE64: ${{ secrets.BUILD_PROVISION_PROFILE_BASE64 }}
+          KEYCHAIN_PASSWORD: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          CERTIFICATE_PATH=$RUNNER_TEMP/build_certificate.p12
+          PP_PATH=$RUNNER_TEMP/build_pp.mobileprovision
+          KEYCHAIN_PATH=$RUNNER_TEMP/app-signing.keychain-db
+
+          # Base64 sifreleri tekrar dosyaya cevir
+          echo -n "$BUILD_CERTIFICATE_BASE64" | base64 --decode -o $CERTIFICATE_PATH
+          echo -n "$BUILD_PROVISION_PROFILE_BASE64" | base64 --decode -o $PP_PATH
+
+          # Sanal Mac uzerinde gecici bir anahtarlik (keychain) olustur
+          security create-keychain -p "$KEYCHAIN_PASSWORD" $KEYCHAIN_PATH
+          security set-keychain-settings -lut 21600 $KEYCHAIN_PATH
+          security unlock-keychain -p "$KEYCHAIN_PASSWORD" $KEYCHAIN_PATH
+
+          # P12 Sertifikasini bu anahtarliga yukle
+          security import $CERTIFICATE_PATH -P "$P12_PASSWORD" -A -t cert -f pkcs12 -k $KEYCHAIN_PATH
+          security list-keychain -d user -s $KEYCHAIN_PATH
+
+          # Provisioning Profile (Ucus Izni) dosyasini Apple'in bekledigi klasore kopyala
+          mkdir -p ~/Library/MobileDevice/Provisioning\ Profiles
+          cp $PP_PATH ~/Library/MobileDevice/Provisioning\ Profiles
+
+      - name: 7. Disa Aktarim Icin ExportOptions Olustur
+        run: |
+          cat <<EOF > ios/App/ExportOptions.plist
+          <?xml version="1.0" encoding="UTF-8"?>
+          <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+          <plist version="1.0">
+          <dict>
+              <key>method</key>
+              <string>app-store</string>
+              <key>provisioningProfiles</key>
+              <dict>
+                  <key>com.scc.falcon</key>
+                  <string>Falcon Profile</string>
+              </dict>
+              <key>signingStyle</key>
+              <string>manual</string>
+          </dict>
+          </plist>
+          EOF
+
+      - name: 8. Xcode ile iOS Uygulamasini Arsivle
+        run: |
+          cd ios/App
+          xcodebuild -workspace App.xcworkspace -scheme App clean archive -archivePath build/App.xcarchive -configuration Release CODE_SIGN_IDENTITY="Apple Distribution" PROVISIONING_PROFILE_SPECIFIER="Falcon Profile"
+
+      - name: 9. IPA (Uygulama Paketi) Dosyasini Disari Cikar
+        run: |
+          cd ios/App
+          xcodebuild -exportArchive -archivePath build/App.xcarchive -exportOptionsPlist ExportOptions.plist -exportPath build
+
+      - name: 10. Apple Sunucularina (TestFlight) Firlat!
+        env:
+          API_KEY_BASE64: ${{ secrets.APPSTORE_API_PRIVATE_KEY }}
+          KEY_ID: ${{ secrets.APPSTORE_API_KEY_ID }}
+          ISSUER_ID: ${{ secrets.APPSTORE_ISSUER_ID }}
+        run: |
+          # P8 anahtarini Apple'in istedigi gizli klasore kaydet
+          mkdir -p ~/.appstoreconnect/private_keys
+          echo -n "$API_KEY_BASE64" | base64 --decode > ~/.appstoreconnect/private_keys/AuthKey_${KEY_ID}.p8
+          
+          # IPA dosyasini Apple'a gonder
+          xcrun altool --upload-app -f ios/App/build/App.ipa -t ios --apiKey "$KEY_ID" --apiIssuer "$ISSUER_ID"
